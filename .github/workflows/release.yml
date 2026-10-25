@@ -59,6 +59,8 @@ jobs:
             confirmation the first time. Updates installed from inside the app are
             signed and verified against the project key.
           releaseDraft: false
-          prerelease: false
+          # Un tag con guion (`v0.3.0-rc1`) queda como prerelease y no se convierte
+          # en la release "latest" que consulta el actualizador.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           uploadUpdaterJson: true
           updaterJsonPreferNsis: true
