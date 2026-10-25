@@ -29,26 +29,38 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
     let width = 1
     let height = 1
     let frame = 0
-    let spectrum: Uint8Array<ArrayBuffer> | null = null
+    let spectrum: Uint8Array | null = null
+    let resizeScheduled = false
+
+    const currentCanvas = () => canvasRef.current ?? canvas
+    const currentCtx = () => currentCanvas().getContext('2d') ?? ctx
 
     const resize = () => {
-      const rect = canvas.getBoundingClientRect()
+      const rect = currentCanvas().getBoundingClientRect()
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
       width = Math.max(1, Math.round(rect.width))
       height = Math.max(1, Math.round(rect.height))
-      canvas.width = Math.round(width * dpr)
-      canvas.height = Math.round(height * dpr)
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      currentCanvas().width = Math.round(width * dpr)
+      currentCanvas().height = Math.round(height * dpr)
+      currentCtx().setTransform(dpr, 0, 0, dpr, 0, 0)
+      resizeScheduled = false
     }
 
     const draw = (time: number) => {
-      ctx.clearRect(0, 0, width, height)
+      const c = currentCtx()
+      c.clearRect(0, 0, width, height)
       const mid = height / 2
 
+      // Si el contexto de audio se suspendió (pestaña en segundo plano o
+      // inactividad), intentamos reanudarlo para que el espectro vuelva.
       const analyser = getAnalyser()
+      if (analyser && analyser.context.state === 'suspended') {
+        void analyser.context.resume().catch(() => undefined)
+      }
+
       if (analyser) {
         if (!spectrum || spectrum.length !== analyser.frequencyBinCount) {
-          spectrum = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount))
+          spectrum = new Uint8Array(analyser.frequencyBinCount)
         }
         analyser.getByteFrequencyData(spectrum)
       }
@@ -65,8 +77,8 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
       }
 
       // Línea central tenue: da sensación de eje aun con la música en pausa.
-      ctx.fillStyle = `rgba(${ACCENT}, 0.09)`
-      ctx.fillRect(0, mid - 0.5, width, 1)
+      c.fillStyle = `rgba(${ACCENT}, 0.09)`
+      c.fillRect(0, mid - 0.5, width, 1)
 
       const gap = 2
       const barWidth = Math.max(1, (width - gap * (BAR_COUNT - 1)) / BAR_COUNT)
@@ -98,14 +110,14 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
         const x = i * (barWidth + gap)
         const alpha = 0.16 + energy * 0.6
 
-        ctx.fillStyle = `rgba(${ACCENT}, ${alpha.toFixed(3)})`
-        ctx.beginPath()
-        if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(x, mid - barHeight, barWidth, barHeight * 2, barWidth / 2)
+        c.fillStyle = `rgba(${ACCENT}, ${alpha.toFixed(3)})`
+        c.beginPath()
+        if (typeof c.roundRect === 'function') {
+          c.roundRect(x, mid - barHeight, barWidth, barHeight * 2, barWidth / 2)
         } else {
-          ctx.rect(x, mid - barHeight, barWidth, barHeight * 2)
+          c.rect(x, mid - barHeight, barWidth, barHeight * 2)
         }
-        ctx.fill()
+        c.fill()
       }
     }
 
@@ -118,10 +130,14 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
     draw(0)
 
     const observer = new ResizeObserver(() => {
-      resize()
-      // Redibuja ya: si la ventana está en segundo plano, rAF puede estar
-      // frenado y el canvas acabaría en blanco tras el resize.
-      draw(performance.now())
+      if (resizeScheduled) return
+      resizeScheduled = true
+      queueMicrotask(() => {
+        resize()
+        // Redibuja ya: si la ventana está en segundo plano, rAF puede estar
+        // frenado y el canvas acabaría en blanco tras el resize.
+        draw(performance.now())
+      })
     })
     observer.observe(canvas)
 
