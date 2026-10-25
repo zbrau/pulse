@@ -163,7 +163,13 @@ Pulse uses `tauri-plugin-updater` with a minisign key pair. The public key is in
   installed; a tampered file is rejected.
 - Releases are built by `.github/workflows/release.yml` on tags `v*` with
   `tauri-action`, which uploads the installer, its signature and the
-  `latest.json` manifest.
+  `latest.json` manifest. A tag with a hyphen (`v0.3.0-rc1`) is published as a
+  prerelease, so the updater never offers it.
+- In Tauri v2 the NSIS installer is also the updater artifact: the release carries
+  `Pulse_<version>_x64-setup.exe` and `Pulse_<version>_x64-setup.exe.sig`, and
+  `latest.json` points at that same file. To publish by hand, build with the
+  signing key set, then run `node scripts/latest-json.mjs --tag v0.2.0` and upload
+  the installer, the `.sig` and `latest.json` to the release.
 
 To build and sign a release locally:
 
@@ -240,7 +246,8 @@ Playwright:
   `GetWindowLong`), kept the current track and timer, and restored the exact
   previous size on exit;
 - the update check failed cleanly with a Spanish message while no `latest.json`
-  was published.
+  existed, and after publishing the release it reported *Pulse v0.2.0 · Estás al
+  día* against the live manifest.
 
 > `cargo test` does not start on this machine with the GNU + WebView2 toolchain:
 > the test binary dies with `STATUS_ENTRYPOINT_NOT_FOUND` (a limitation of the
