@@ -25,7 +25,6 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let width = 1
     let height = 1
     let frame = 0
@@ -148,9 +147,8 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
     })
     observer.observe(canvas)
 
-    if (!reduceMotion) {
-      frame = window.requestAnimationFrame(loop)
-    }
+    // Bucle continuo de animación del visualizador
+    frame = window.requestAnimationFrame(loop)
 
     return () => {
       window.cancelAnimationFrame(frame)

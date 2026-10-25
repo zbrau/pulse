@@ -11,14 +11,42 @@ let active = false
 
 export const isMiniWindow = (): boolean => active
 
+/** Minimiza la ventana nativa de escritorio. */
+export async function minimizeWindow(): Promise<void> {
+  if (!isDesktop()) return
+  try {
+    await getCurrentWindow().minimize()
+  } catch (err) {
+    console.warn('[window] error minimizando:', err)
+  }
+}
+
+/** Alterna entre maximizar y restaurar la ventana. */
+export async function toggleMaximizeWindow(): Promise<void> {
+  if (!isDesktop()) return
+  try {
+    await getCurrentWindow().toggleMaximize()
+  } catch (err) {
+    console.warn('[window] error maximizando:', err)
+  }
+}
+
+/** Cierra la ventana. */
+export async function closeWindow(): Promise<void> {
+  if (!isDesktop()) return
+  try {
+    await getCurrentWindow().close()
+  } catch (err) {
+    console.warn('[window] error cerrando:', err)
+  }
+}
+
 /** Encoge la ventana y la deja siempre encima. */
 export async function enterMiniWindow(): Promise<void> {
   if (!isDesktop() || active) return
   const win = getCurrentWindow()
 
   try {
-    // `setSize` fija el área cliente, así que se guarda el tamaño interior
-    // para que el ida y vuelta no añada el marco de la ventana cada vez.
     const size = await win.innerSize()
     saved = { width: size.width, height: size.height }
     await win.setResizable(false)

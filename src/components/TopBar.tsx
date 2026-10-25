@@ -1,9 +1,21 @@
 import { useMemo } from 'react'
-import { CircleDot, Download, Flame, Minimize2, Settings2, Timer } from 'lucide-react'
+import {
+  CircleDot,
+  Download,
+  Flame,
+  Minimize2,
+  Minus,
+  Settings2,
+  Square,
+  Timer,
+  X,
+} from 'lucide-react'
 import { selectToday, useStore } from '../store/useStore'
 import { useUi } from '../store/useUi'
 import { useUpdater } from '../store/useUpdater'
 import { formatLongDate, todayKey } from '../lib/date'
+import { isDesktop } from '../lib/desktop'
+import { closeWindow, minimizeWindow, toggleMaximizeWindow } from '../lib/window'
 
 const streakOf = (stats: Record<string, { pomodoros: number }>): number => {
   let streak = 0
@@ -36,7 +48,6 @@ export function TopBar() {
   const updateVersion = useUpdater((s) => s.version)
   const dismissed = useUpdater((s) => s.dismissed)
 
-  // Vercel React Best Practices: Memoizar cálculo de racha sobre cambios de stats
   const streak = useMemo(() => streakOf(stats), [stats])
 
   const showUpdate =
@@ -45,14 +56,21 @@ export function TopBar() {
       updateStatus === 'downloading' ||
       updateStatus === 'ready')
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement | null
+    if (target?.closest('button, a, input, select, textarea')) return
+    void toggleMaximizeWindow()
+  }
+
   return (
     <header
       data-tauri-drag-region
-      className="sticky top-0 z-30 border-b border-line-soft bg-bg/85 backdrop-blur-md select-none transition-colors"
+      onDoubleClick={handleDoubleClick}
+      className="sticky top-0 z-30 border-b border-line-soft bg-bg/90 backdrop-blur-md select-none transition-colors"
     >
       <div
         data-tauri-drag-region
-        className="mx-auto flex max-w-[1440px] items-center gap-3 px-4 py-2.5 sm:px-6"
+        className="mx-auto flex max-w-[1440px] items-center gap-3 px-4 py-2 sm:px-6"
       >
         {/* Identidad / Branding */}
         <div data-tauri-drag-region className="flex items-center gap-2.5">
@@ -63,7 +81,7 @@ export function TopBar() {
           <div data-tauri-drag-region className="leading-tight">
             <div className="flex items-center gap-1.5">
               <p className="text-[13.5px] font-bold tracking-tight text-fg">Pulse</p>
-              <span className="text-[9.5px] font-mono text-faint px-1 py-0.2 rounded bg-surface-2 border border-line-soft">
+              <span className="text-[9.5px] font-mono text-faint px-1.5 py-0.2 rounded bg-surface-2 border border-line-soft">
                 v0.2.2
               </span>
             </div>
@@ -73,7 +91,7 @@ export function TopBar() {
           </div>
         </div>
 
-        {/* Acciones y Métricas (pointer-events activados explícitamente para evitar conflicto con drag) */}
+        {/* Acciones, Métricas y Controles Nativos de Ventana */}
         <div className="ml-auto flex items-center gap-1.5">
           <span className="chip" title="Pomodoros completados hoy">
             <Timer size={12} className="text-accent" />
@@ -110,22 +128,55 @@ export function TopBar() {
           <button
             type="button"
             onClick={() => setMini(true)}
-            className="icon-btn"
+            className="icon-btn size-8"
             aria-label="Modo mini"
             title="Modo mini flotante (Always-on-top)"
           >
-            <Minimize2 size={15} />
+            <Minimize2 size={14} />
           </button>
 
           <button
             type="button"
             onClick={() => openSettings()}
-            className="icon-btn"
+            className="icon-btn size-8"
             aria-label="Ajustes"
             title="Ajustes de Pulse"
           >
-            <Settings2 size={16} />
+            <Settings2 size={15} />
           </button>
+
+          {/* Controles de Ventana Nativos de Escritorio (Windows / macOS) */}
+          {isDesktop() && (
+            <div className="flex items-center ml-2 pl-2 border-l border-line-soft gap-1">
+              <button
+                type="button"
+                onClick={() => void minimizeWindow()}
+                className="size-7 grid place-items-center rounded-lg text-muted hover:text-fg hover:bg-surface-3 transition-colors active:scale-95"
+                title="Minimizar ventana"
+                aria-label="Minimizar ventana"
+              >
+                <Minus size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => void toggleMaximizeWindow()}
+                className="size-7 grid place-items-center rounded-lg text-muted hover:text-fg hover:bg-surface-3 transition-colors active:scale-95"
+                title="Maximizar o restaurar ventana"
+                aria-label="Maximizar o restaurar ventana"
+              >
+                <Square size={11} />
+              </button>
+              <button
+                type="button"
+                onClick={() => void closeWindow()}
+                className="size-7 grid place-items-center rounded-lg text-muted hover:text-white hover:bg-[#e81123] transition-colors active:scale-95"
+                title="Cerrar Pulse"
+                aria-label="Cerrar Pulse"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
