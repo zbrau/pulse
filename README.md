@@ -249,6 +249,11 @@ Playwright:
   existed, and after publishing the release it reported *Pulse v0.2.0 · Estás al
   día* against the live manifest.
 
+The release workflow was exercised with a throwaway `v0.2.0-rc1` tag: GitHub
+Actions built the installer with the MSVC toolchain, signed it with the repository
+secrets, uploaded `latest.json` and published the result as a prerelease, which the
+updater ignores.
+
 > `cargo test` does not start on this machine with the GNU + WebView2 toolchain:
 > the test binary dies with `STATUS_ENTRYPOINT_NOT_FOUND` (a limitation of the
 > combination, not of the code). The `lyrics.rs` tests stay in the repo and
