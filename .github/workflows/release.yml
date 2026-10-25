@@ -24,7 +24,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Set up Rust
@@ -36,7 +36,9 @@ jobs:
           workspaces: src-tauri
 
       - name: Install frontend dependencies
-        run: npm ci
+        # `npm ci` falla si el lockfile se generó en otra plataforma: npm omite
+        # las dependencias opcionales de wasm32 y luego las reclama al validar.
+        run: npm install --no-audit --no-fund
 
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
@@ -45,7 +47,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: v__VERSION__
+          # En un tag, la release lleva el nombre del tag (`v0.2.0`). Si se lanza a
+          # mano desde una rama, tauri-action sustituye __VERSION__.
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
           releaseName: Pulse v__VERSION__
           releaseBody: |
             Desktop app for focus and music: tasks, pomodoro, lofi radio and
