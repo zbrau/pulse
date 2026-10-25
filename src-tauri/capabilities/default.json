@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permisos por defecto de Pulse",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
