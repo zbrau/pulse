@@ -1,37 +1,50 @@
 <!doctype html>
-<html lang="en">
+<html lang="es" data-lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0a0b0d" />
-    <title>Pulse — focus and music in one window</title>
+    <meta name="theme-color" content="#090a0d" />
+    <title>Pulse — Tu espacio de enfoque y música en una sola ventana</title>
     <meta
       name="description"
-      content="Pulse is a free Windows desktop app that combines tasks, a pomodoro timer, lofi radio and YouTube Music with synced lyrics. Offline downloads, mini mode and automatic updates."
+      content="Pulse es una app de escritorio nativa para Windows (Tauri v2) que reúne tareas con prioridades, temporizador Pomodoro, radio lofi y YouTube Music con letras sincronizadas. Sin cuentas, sin anuncios y con descargas offline."
     />
-    <meta property="og:title" content="Pulse — focus and music in one window" />
+    <meta property="og:title" content="Pulse — Enfoque y música en una sola ventana" />
     <meta
       property="og:description"
-      content="Tasks, pomodoro, lofi radio and YouTube Music with synced lyrics. Free, open source and built with Tauri."
+      content="Tareas, pomodoro, radio lofi y reproductor de música libre con karaoke LRCLIB. Ligero, nativo y de código abierto para Windows."
     />
     <meta property="og:image" content="preview.png" />
     <meta property="og:type" content="website" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='34' fill='none' stroke='%2389a9cc' stroke-width='10'/><circle cx='50' cy='50' r='10' fill='%2389a9cc'/></svg>" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='36' fill='none' stroke='%2389a9cc' stroke-width='9'/><circle cx='50' cy='50' r='14' fill='%2389a9cc'/></svg>" />
+    
+    <!-- Tipografía Inter y JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
     <style>
       :root {
         color-scheme: dark;
-        --bg: #0a0b0d;
-        --surface: #101216;
-        --surface-2: #161920;
-        --line: #24282f;
-        --line-soft: #1b1f26;
-        --fg: #e9ecf1;
-        --muted: #8b919c;
-        --faint: #767c88;
+        --bg: #090a0d;
+        --bg-alt: #0d0f14;
+        --surface: #11141a;
+        --surface-2: #161b24;
+        --surface-3: #1e2430;
+        --line: #222834;
+        --line-soft: #191e28;
+        --fg: #ecf0f6;
+        --muted: #949ca9;
+        --faint: #6c7584;
         --accent: #89a9cc;
-        --break: #8fb98f;
+        --accent-hover: #a3c2e4;
+        --accent-glow: rgba(137, 169, 204, 0.22);
+        --accent-dim: rgba(137, 169, 204, 0.1);
+        --green: #8fb98f;
+        --green-glow: rgba(143, 185, 143, 0.2);
         --warn: #c9a886;
-        --radius: 16px;
+        --radius: 18px;
+        --radius-sm: 12px;
       }
 
       * {
@@ -45,16 +58,36 @@
       body {
         margin: 0;
         background-color: var(--bg);
-        background-image:
-          radial-gradient(900px 520px at 12% -8%, rgba(137, 169, 204, 0.09), transparent 65%),
-          radial-gradient(760px 480px at 96% 0%, rgba(143, 185, 143, 0.05), transparent 60%);
-        background-attachment: fixed;
         color: var(--fg);
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-          "Helvetica Neue", Arial, sans-serif;
+        font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
         line-height: 1.6;
         -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+
+      /* Fondos ambientales de luz dinámica */
+      .ambient-glow {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background:
+          radial-gradient(1100px 650px at 15% -10%, rgba(137, 169, 204, 0.1), transparent 70%),
+          radial-gradient(900px 550px at 85% 15%, rgba(143, 185, 143, 0.06), transparent 65%),
+          radial-gradient(800px 600px at 50% 90%, rgba(137, 169, 204, 0.05), transparent 70%);
+      }
+
+      /* Cuadrícula sutil de fondo */
+      .grid-pattern {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background-image: 
+          linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(ellipse 90% 80% at 50% 20%, #000 30%, transparent 85%);
       }
 
       a {
@@ -68,90 +101,80 @@
         height: auto;
       }
 
-      :focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 3px;
-        border-radius: 6px;
-      }
-
       .wrap {
-        width: min(1120px, 100% - 40px);
+        width: min(1180px, 100% - 48px);
         margin-inline: auto;
+        position: relative;
+        z-index: 1;
       }
 
-      .skip {
-        position: absolute;
-        left: 16px;
-        top: -60px;
-        z-index: 20;
-        padding: 10px 14px;
-        border-radius: 10px;
-        background: var(--surface-2);
-        border: 1px solid var(--line);
-        transition: top 0.15s ease;
-      }
-
-      .skip:focus {
-        top: 16px;
-      }
-
+      /* Header Superior */
       .site-header {
         position: sticky;
         top: 0;
-        z-index: 10;
+        z-index: 50;
         border-bottom: 1px solid var(--line-soft);
-        background: rgba(10, 11, 13, 0.82);
-        backdrop-filter: blur(12px);
+        background: rgba(9, 10, 13, 0.82);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
       }
 
       .site-header .wrap {
         display: flex;
         align-items: center;
         gap: 24px;
-        min-height: 64px;
+        min-height: 68px;
       }
 
       .brand {
         display: inline-flex;
         align-items: center;
-        gap: 10px;
-        font-weight: 650;
-        letter-spacing: -0.01em;
-        font-size: 15px;
+        gap: 11px;
+        font-weight: 750;
+        letter-spacing: -0.02em;
+        font-size: 17px;
       }
 
       .mark {
-        width: 28px;
-        height: 28px;
-        border-radius: 10px;
+        width: 32px;
+        height: 32px;
+        border-radius: 11px;
         border: 1px solid var(--line);
-        background: var(--surface-2);
+        background: linear-gradient(135deg, var(--surface-2), var(--surface));
         display: grid;
         place-items: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
       }
 
-      .mark::before {
-        content: "";
-        width: 10px;
-        height: 10px;
+      .mark-pulse {
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
-        border: 2px solid var(--accent);
-        box-shadow: 0 0 0 3px rgba(137, 169, 204, 0.1);
+        background: var(--accent);
+        box-shadow: 0 0 16px var(--accent);
+        animation: pulseRing 2.4s infinite ease-out;
+      }
+
+      @keyframes pulseRing {
+        0% { transform: scale(0.9); box-shadow: 0 0 0 0 var(--accent-glow); }
+        60% { transform: scale(1.05); box-shadow: 0 0 0 9px transparent; }
+        100% { transform: scale(0.9); box-shadow: 0 0 0 0 transparent; }
       }
 
       nav {
         margin-left: auto;
         display: flex;
         align-items: center;
-        gap: 4px;
-        font-size: 13px;
+        gap: 6px;
+        font-size: 13.5px;
+        font-weight: 500;
         color: var(--muted);
       }
 
       nav a {
-        padding: 8px 10px;
-        border-radius: 8px;
-        transition: background 0.15s ease, color 0.15s ease;
+        padding: 7px 12px;
+        border-radius: 9px;
+        transition: all 0.15s ease;
       }
 
       nav a:hover {
@@ -159,699 +182,1165 @@
         color: var(--fg);
       }
 
-      .hero {
-        display: grid;
-        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+      .lang-switcher {
+        display: flex;
         align-items: center;
-        gap: 56px;
-        padding-block: 76px 56px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 2px;
+        font-size: 11.5px;
+        font-weight: 600;
+        margin-left: 10px;
       }
 
-      .eyebrow {
-        margin: 0 0 14px;
-        font-size: 11px;
+      .lang-btn {
+        background: none;
+        border: none;
+        color: var(--faint);
+        padding: 4px 8px;
+        border-radius: 7px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .lang-btn.active {
+        background: var(--surface-3);
+        color: var(--fg);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+
+      .nav-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        color: var(--fg) !important;
         font-weight: 600;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: var(--accent);
+        padding: 7px 14px;
+        border-radius: 10px;
+        transition: all 0.15s ease;
+      }
+
+      .nav-cta:hover {
+        border-color: var(--accent);
+        transform: translateY(-1px);
+      }
+
+      /* Hero Section */
+      .hero {
+        padding-block: 84px 64px;
+        text-align: center;
+      }
+
+      .hero-content {
+        max-width: 840px;
+        margin-inline: auto;
+      }
+
+      .release-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(22, 27, 36, 0.7);
+        backdrop-filter: blur(8px);
+        font-size: 12px;
+        font-weight: 550;
+        color: var(--muted);
+        margin-bottom: 24px;
+        transition: border-color 0.2s;
+      }
+
+      .release-badge:hover {
+        border-color: var(--accent);
+      }
+
+      .live-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green);
       }
 
       h1 {
         margin: 0;
-        font-size: clamp(34px, 5vw, 56px);
-        line-height: 1.04;
-        letter-spacing: -0.035em;
-        font-weight: 650;
-        max-width: 15ch;
+        font-size: clamp(38px, 6vw, 68px);
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+        font-weight: 800;
+        background: linear-gradient(180deg, #ffffff 40%, rgba(255, 255, 255, 0.65) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
 
-      .lead {
-        margin: 20px 0 0;
-        font-size: 16px;
-        line-height: 1.65;
+      .hero-lead {
+        margin: 22px auto 0;
+        font-size: clamp(16px, 2vw, 19px);
+        line-height: 1.6;
         color: var(--muted);
-        max-width: 46ch;
+        max-width: 640px;
       }
 
-      .actions {
+      .hero-actions {
         display: flex;
+        align-items: center;
+        justify-content: center;
         flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 28px;
+        gap: 14px;
+        margin-top: 36px;
       }
 
       .button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        min-height: 44px;
-        padding: 0 20px;
-        border-radius: 12px;
-        border: 1px solid var(--line);
-        background: var(--surface-2);
-        font-size: 14px;
-        font-weight: 600;
-        transition: transform 0.12s ease, background 0.15s ease,
-          border-color 0.15s ease;
-      }
-
-      .button:hover {
-        transform: translateY(-1px);
+        gap: 9px;
+        min-height: 48px;
+        padding: 0 24px;
+        border-radius: 13px;
+        font-size: 14.5px;
+        font-weight: 650;
+        transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: pointer;
+        border: 1px solid transparent;
       }
 
       .button.primary {
-        background: var(--accent);
-        border-color: transparent;
-        color: #0a0b0d;
+        background: linear-gradient(180deg, var(--accent) 0%, #7597bc 100%);
+        color: #07090c;
+        box-shadow: 0 4px 20px var(--accent-glow), 0 1px 2px rgba(0, 0, 0, 0.4);
       }
 
       .button.primary:hover {
-        background: #9dbad9;
+        background: linear-gradient(180deg, var(--accent-hover) 0%, #83a5cc 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 28px rgba(137, 169, 204, 0.35);
       }
 
-      .button.ghost:hover {
+      .button.secondary {
         background: var(--surface-2);
-        border-color: #30353e;
+        border: 1px solid var(--line);
+        color: var(--fg);
       }
 
-      .meta {
-        margin: 16px 0 0;
-        font-size: 12px;
+      .button.secondary:hover {
+        border-color: #353f50;
+        background: var(--surface-3);
+        transform: translateY(-2px);
+      }
+
+      .hero-meta {
+        margin-top: 18px;
+        font-size: 12.5px;
         color: var(--faint);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
       }
 
-      .shot {
-        margin: 0;
+      /* Mockup de la Ventana de Pulse */
+      .window-showcase {
+        margin-top: 54px;
         position: relative;
       }
 
-      .shot::before {
-        content: "";
+      .window-glow {
         position: absolute;
-        inset: 8% -6% -10% 6%;
-        background: radial-gradient(closest-side, rgba(137, 169, 204, 0.18), transparent);
-        filter: blur(36px);
+        inset: 10% 5% 0% 5%;
+        background: radial-gradient(closest-side, var(--accent-glow) 0%, transparent 100%);
+        filter: blur(64px);
         z-index: -1;
       }
 
-      .shot img {
-        width: 100%;
-        border-radius: var(--radius);
+      .window-frame {
+        border-radius: 20px;
         border: 1px solid var(--line);
-        box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.95);
+        background: #0d1016;
+        box-shadow: 0 32px 90px -25px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        overflow: hidden;
       }
 
+      .window-header {
+        height: 38px;
+        background: #12161f;
+        border-bottom: 1px solid var(--line-soft);
+        display: flex;
+        align-items: center;
+        padding-inline: 14px;
+        gap: 12px;
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 7px;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #252b38;
+      }
+
+      .window-title {
+        font-size: 11.5px;
+        color: var(--faint);
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: -0.01em;
+        margin-left: 4px;
+      }
+
+      .window-body {
+        position: relative;
+      }
+
+      .window-body img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      /* Canvas de Audio Visualizer Live */
+      .live-canvas-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 52px;
+        background: linear-gradient(180deg, transparent, rgba(9, 10, 13, 0.85));
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding-bottom: 12px;
+        gap: 4px;
+      }
+
+      .v-bar {
+        width: 4px;
+        border-radius: 4px;
+        background: var(--accent);
+        opacity: 0.85;
+        animation: eqPulse 1.2s ease-in-out infinite alternate;
+      }
+
+      @keyframes eqPulse {
+        0% { height: 6px; opacity: 0.3; }
+        100% { height: 28px; opacity: 0.9; }
+      }
+
+      /* Sección Bento Grid */
       section {
-        padding-block: 56px;
+        padding-block: 72px;
       }
 
       .section-head {
-        display: flex;
-        align-items: end;
-        justify-content: space-between;
-        gap: 24px;
-        margin-bottom: 28px;
+        text-align: center;
+        max-width: 640px;
+        margin: 0 auto 44px;
+      }
+
+      .eyebrow {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin: 0 0 10px;
       }
 
       h2 {
         margin: 0;
-        font-size: clamp(24px, 3vw, 32px);
+        font-size: clamp(26px, 3.4vw, 38px);
         line-height: 1.15;
-        letter-spacing: -0.02em;
-        font-weight: 620;
+        letter-spacing: -0.03em;
+        font-weight: 750;
       }
 
       .section-head p {
-        margin: 8px 0 0;
+        margin: 12px 0 0;
         color: var(--muted);
-        font-size: 14px;
-        max-width: 56ch;
+        font-size: 15.5px;
       }
 
-      .grid {
+      .bento-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
       }
 
-      .card {
-        padding: 20px;
-        border-radius: var(--radius);
-        border: 1px solid var(--line);
-        background: linear-gradient(180deg, rgba(22, 25, 32, 0.65), rgba(16, 18, 22, 0.65));
-      }
-
-      .card h3 {
-        margin: 14px 0 0;
-        font-size: 14px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-      }
-
-      .card p {
-        margin: 6px 0 0;
-        font-size: 12.5px;
-        line-height: 1.6;
-        color: var(--muted);
-      }
-
-      .icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
-        border: 1px solid var(--line);
-        background: var(--surface);
-        display: grid;
-        place-items: center;
-        color: var(--accent);
-      }
-
-      .icon svg {
-        width: 17px;
-        height: 17px;
-      }
-
-      .split {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 14px;
-      }
-
-      .panel {
+      .bento-card {
+        position: relative;
         padding: 28px;
         border-radius: var(--radius);
         border: 1px solid var(--line);
-        background: var(--surface);
+        background: linear-gradient(180deg, var(--surface) 0%, var(--bg-alt) 100%);
+        overflow: hidden;
+        transition: all 0.22s ease;
       }
 
-      .panel h3 {
-        margin: 0;
-        font-size: 17px;
+      .bento-card:hover {
+        border-color: #323a4a;
+        transform: translateY(-3px);
+        box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.6);
+      }
+
+      .bento-card.wide {
+        grid-column: span 2;
+      }
+
+      .card-badge {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 6px;
+        background: var(--accent-dim);
+        color: var(--accent);
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: -0.01em;
+        margin-bottom: 16px;
+        border: 1px solid rgba(137, 169, 204, 0.15);
       }
 
-      .panel > p {
-        margin: 8px 0 0;
-        color: var(--muted);
-        font-size: 13.5px;
-      }
-
-      .panel ul {
-        margin: 18px 0 0;
-        padding: 0;
-        list-style: none;
-        display: grid;
-        gap: 10px;
-        font-size: 13px;
-        color: var(--muted);
-      }
-
-      .panel li {
-        display: flex;
-        gap: 10px;
-        align-items: flex-start;
-      }
-
-      .panel li::before {
-        content: "";
-        width: 6px;
-        height: 6px;
-        margin-top: 8px;
-        border-radius: 50%;
-        background: var(--accent);
-        flex: 0 0 auto;
-      }
-
-      .panel li strong {
-        color: var(--fg);
-        font-weight: 550;
-      }
-
-      .steps {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
-        counter-reset: step;
-      }
-
-      .step {
-        padding: 22px;
-        border-radius: var(--radius);
+      .bento-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: var(--surface-2);
         border: 1px solid var(--line);
-        background: var(--surface);
-        counter-increment: step;
-      }
-
-      .step::before {
-        content: counter(step);
         display: grid;
         place-items: center;
-        width: 26px;
-        height: 26px;
-        border-radius: 8px;
-        border: 1px solid var(--line);
-        background: var(--surface-2);
         color: var(--accent);
-        font-size: 12px;
+        margin-bottom: 18px;
+      }
+
+      .bento-card h3 {
+        margin: 0;
+        font-size: 18px;
         font-weight: 650;
+        letter-spacing: -0.015em;
       }
 
-      .step h3 {
-        margin: 14px 0 0;
-        font-size: 14px;
-        font-weight: 600;
-      }
-
-      .step p {
-        margin: 6px 0 0;
-        font-size: 12.5px;
+      .bento-card p {
+        margin: 10px 0 0;
+        font-size: 13.5px;
         color: var(--muted);
         line-height: 1.6;
       }
 
-      .banner {
+      /* Mini widgets dentro de las tarjetas */
+      .karaoke-preview {
+        margin-top: 18px;
+        padding: 14px 18px;
+        background: var(--surface-2);
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+        font-size: 13px;
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 20px;
-        padding: 30px;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .karaoke-line {
+        color: var(--faint);
+        transition: color 0.3s;
+      }
+
+      .karaoke-line.active {
+        color: var(--accent);
+        font-weight: 650;
+        transform: scale(1.02);
+        transform-origin: left;
+      }
+
+      .eq-preview-bars {
+        margin-top: 20px;
+        height: 50px;
+        display: flex;
+        align-items: flex-end;
+        gap: 6px;
+        padding: 10px 14px;
+        background: var(--surface-2);
+        border-radius: 12px;
+        border: 1px solid var(--line-soft);
+      }
+
+      .eq-col {
+        flex: 1;
+        background: var(--surface-3);
+        border-radius: 4px;
+        position: relative;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .eq-fill {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(180deg, var(--accent) 0%, #526f8d 100%);
+        border-radius: 4px;
+        transition: height 0.3s;
+      }
+
+      /* Comparativa vs Alternativas */
+      .comparison-section {
+        margin-top: 24px;
+      }
+
+      .comparison-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--surface);
+      }
+
+      .comparison-table th, 
+      .comparison-table td {
+        padding: 16px 20px;
+        text-align: left;
+        border-bottom: 1px solid var(--line-soft);
+        font-size: 13.5px;
+      }
+
+      .comparison-table th {
+        background: var(--surface-2);
+        color: var(--fg);
+        font-weight: 650;
+        font-size: 14px;
+      }
+
+      .comparison-table th.highlight,
+      .comparison-table td.highlight {
+        background: rgba(137, 169, 204, 0.05);
+        color: var(--fg);
+        font-weight: 600;
+        border-inline: 1px solid rgba(137, 169, 204, 0.2);
+      }
+
+      .comparison-table th.highlight {
+        color: var(--accent);
+      }
+
+      .comparison-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .check {
+        color: var(--green);
+        font-weight: bold;
+      }
+
+      .cross {
+        color: #e06c75;
+      }
+
+      /* Arquitectura en Rust */
+      .arch-box {
+        padding: 32px;
         border-radius: var(--radius);
         border: 1px solid var(--line);
-        background:
-          radial-gradient(600px 200px at 8% 0%, rgba(137, 169, 204, 0.12), transparent 70%),
-          var(--surface);
+        background: radial-gradient(800px 300px at 10% 0%, var(--accent-dim), transparent), var(--surface);
+        margin-top: 24px;
       }
 
-      .banner h2 {
-        font-size: clamp(22px, 2.6vw, 28px);
+      .arch-flow {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-top: 24px;
       }
 
-      .banner p {
-        margin: 8px 0 0;
-        color: var(--muted);
+      .arch-node {
+        padding: 18px;
+        border-radius: var(--radius-sm);
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+      }
+
+      .arch-node-title {
         font-size: 13.5px;
-        max-width: 52ch;
+        font-weight: 650;
+        color: var(--accent);
+        font-family: 'JetBrains Mono', monospace;
       }
 
+      .arch-node-desc {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+        line-height: 1.5;
+      }
+
+      /* Banner de Descarga Final */
+      .cta-banner {
+        position: relative;
+        padding: 48px;
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        background: 
+          radial-gradient(800px 300px at 50% 0%, rgba(137, 169, 204, 0.16), transparent),
+          var(--surface);
+        text-align: center;
+        overflow: hidden;
+      }
+
+      .cta-banner h2 {
+        font-size: clamp(28px, 4vw, 42px);
+      }
+
+      .cta-banner p {
+        color: var(--muted);
+        font-size: 16px;
+        max-width: 580px;
+        margin: 14px auto 0;
+      }
+
+      .cta-btn-group {
+        margin-top: 32px;
+        display: flex;
+        justify-content: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      /* Footer */
       footer {
         border-top: 1px solid var(--line-soft);
-        padding-block: 28px 40px;
-        margin-top: 40px;
+        padding-block: 36px 48px;
+        margin-top: 64px;
+        font-size: 13px;
+        color: var(--faint);
       }
 
       footer .wrap {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
-        gap: 14px;
-        font-size: 12.5px;
-        color: var(--faint);
+        flex-wrap: wrap;
+        gap: 16px;
       }
 
       footer a {
         color: var(--muted);
-        text-decoration: underline;
-        text-decoration-color: transparent;
-        text-underline-offset: 3px;
-        transition: color 0.15s ease, text-decoration-color 0.15s ease;
+        transition: color 0.15s;
       }
 
       footer a:hover {
         color: var(--fg);
-        text-decoration-color: var(--line);
       }
 
-      .foot-links {
+      .footer-links {
         display: flex;
-        gap: 16px;
+        gap: 20px;
       }
 
-      @media (max-width: 900px) {
+      /* Responsive */
+      @media (max-width: 960px) {
+        .bento-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .bento-card.wide {
+          grid-column: span 2;
+        }
+        .arch-flow {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      @media (max-width: 680px) {
+        .wrap {
+          width: calc(100% - 32px);
+        }
+        .bento-grid {
+          grid-template-columns: 1fr;
+        }
+        .bento-card.wide {
+          grid-column: span 1;
+        }
+        .arch-flow {
+          grid-template-columns: 1fr;
+        }
         .hero {
-          grid-template-columns: minmax(0, 1fr);
-          gap: 36px;
-          padding-block: 52px 36px;
+          padding-block: 54px 36px;
         }
-
-        h1 {
-          max-width: 20ch;
-        }
-
-        .grid,
-        .steps {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-      }
-
-      @media (max-width: 640px) {
         nav a:not(.nav-cta) {
           display: none;
         }
-
-        .grid,
-        .steps,
-        .split {
-          grid-template-columns: minmax(0, 1fr);
-        }
-
-        .section-head {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-
-        .banner {
-          padding: 24px;
-        }
-
-        section {
-          padding-block: 40px;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        html {
-          scroll-behavior: auto;
-        }
-
-        *,
-        *::before,
-        *::after {
-          transition: none !important;
-          animation: none !important;
+        .comparison-table {
+          display: block;
+          overflow-x: auto;
         }
       }
     </style>
   </head>
   <body id="top">
-    <a class="skip" href="#main">Skip to content</a>
+    <div class="ambient-glow" aria-hidden="true"></div>
+    <div class="grid-pattern" aria-hidden="true"></div>
 
+    <!-- Navegación Superior -->
     <header class="site-header">
       <div class="wrap">
-        <a class="brand" href="#top" aria-label="Pulse home">
-          <span class="mark" aria-hidden="true"></span>
-          Pulse
+        <a class="brand" href="#top" aria-label="Pulse">
+          <div class="mark">
+            <div class="mark-pulse"></div>
+          </div>
+          <span>Pulse</span>
         </a>
-        <nav aria-label="Main">
-          <a href="#features">Features</a>
-          <a href="#offline">Offline</a>
-          <a href="#how">How it works</a>
-          <a class="nav-cta" href="https://github.com/zbrau/pulse">GitHub</a>
+
+        <nav aria-label="Principal">
+          <a href="#features" data-i18n="nav_features">Características</a>
+          <a href="#offline" data-i18n="nav_offline">Offline & Mini</a>
+          <a href="#comparativa" data-i18n="nav_compare">Comparativa</a>
+          <a href="#arquitectura" data-i18n="nav_arch">Arquitectura</a>
+          <a class="nav-cta" href="https://github.com/zbrau/pulse" target="_blank" rel="noreferrer">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+            </svg>
+            <span>GitHub</span>
+          </a>
+
+          <!-- Selector de Idioma -->
+          <div class="lang-switcher">
+            <button class="lang-btn active" id="btn-es" onclick="setLanguage('es')">ES</button>
+            <button class="lang-btn" id="btn-en" onclick="setLanguage('en')">EN</button>
+          </div>
         </nav>
       </div>
     </header>
 
     <main id="main">
-      <section class="hero wrap" aria-labelledby="hero-title">
-        <div>
-          <p class="eyebrow">Desktop focus app for Windows</p>
-          <h1 id="hero-title">Focus and music in one quiet window.</h1>
-          <p class="lead">
-            Pulse keeps your task list, a pomodoro timer, lofi radio and YouTube
-            Music with synced lyrics in a single place. No accounts, no tabs, no
-            noise.
+      <!-- Hero -->
+      <section class="hero wrap">
+        <div class="hero-content">
+          <div class="release-badge">
+            <span class="live-dot"></span>
+            <span data-i18n="hero_badge">Pulse v0.2.1 ya disponible para Windows 10/11</span>
+          </div>
+
+          <h1 data-i18n="hero_title">Tu espacio de enfoque y música en una sola ventana.</h1>
+          <p class="hero-lead" data-i18n="hero_desc">
+            Pulse une tus tareas por prioridad, temporizador Pomodoro, radio lofi y YouTube Music con letras sincronizadas. Cero anuncios, sin suscripciones de pago y con descargas offline.
           </p>
-          <div class="actions">
-            <a
-              class="button primary"
-              href="https://github.com/zbrau/pulse/releases/latest"
-            >
-              Download for Windows
+
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/zbrau/pulse/releases/latest" target="_blank" rel="noreferrer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span data-i18n="hero_cta">Descargar para Windows</span>
             </a>
-            <a class="button ghost" href="https://github.com/zbrau/pulse">
-              View source
+
+            <a class="button secondary" href="https://github.com/zbrau/pulse" target="_blank" rel="noreferrer">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="10 8 16 12 10 16 10 8"></polygon>
+              </svg>
+              <span data-i18n="hero_code">Código Abierto (Rust + React)</span>
             </a>
           </div>
-          <p class="meta">
-            Free and open source &middot; MIT &middot; Windows 10/11 x64
+
+          <div class="hero-meta">
+            <span>✓ <span data-i18n="meta_free">Gratuito y Open Source</span></span>
+            <span>✓ <span data-i18n="meta_tauri">Tauri v2 (ultraligero)</span></span>
+            <span>✓ <span data-i18n="meta_offline">Funciona sin internet</span></span>
+          </div>
+        </div>
+
+        <!-- Showcase de la Ventana -->
+        <div class="window-showcase">
+          <div class="window-glow"></div>
+          <div class="window-frame">
+            <div class="window-header">
+              <div class="window-dots">
+                <div class="dot" style="background:#e06c75"></div>
+                <div class="dot" style="background:#e5c07b"></div>
+                <div class="dot" style="background:#98c379"></div>
+              </div>
+              <div class="window-title">Pulse — focus and music in one window (Tauri v2)</div>
+            </div>
+            <div class="window-body">
+              <img
+                src="preview.png"
+                alt="Pulse Desktop Screenshot"
+                width="1440"
+                height="1000"
+                loading="eager"
+              />
+              <!-- Animación de Ecualizador interactivo simulado en el pie -->
+              <div class="live-canvas-bar" id="eqBars">
+                <!-- Generado por JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bento Grid de Características -->
+      <section id="features" class="wrap">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="features_eyebrow">DISEÑADO PARA TRABAJAR DE VERDAD</p>
+          <h2 data-i18n="features_title">Música sin límites, enfoque sin distracciones</h2>
+          <p data-i18n="features_subtitle">Todo lo necesario para sesiones productivas de 4 a 8 horas sin abrir pestañas innecesarias.</p>
+        </div>
+
+        <div class="bento-grid">
+          <!-- Card 1: YouTube Music sin límites (Wide) -->
+          <article class="bento-card wide">
+            <span class="card-badge" data-i18n="card1_badge">AUDIO PURO</span>
+            <div class="bento-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="10 8 16 12 10 16 10 8"></polygon>
+              </svg>
+            </div>
+            <h3 data-i18n="card1_title">Catálogo Universal con YouTube Music</h3>
+            <p data-i18n="card1_desc">
+              Busca cualquier canción, artista o álbum. El audio se extrae como stream puro de alta calidad (Opus a 160 kbps / AAC) mediante <strong>yt-dlp</strong> como sidecar local en Rust, sin anuncios de video ni scripts de rastreo.
+            </p>
+          </article>
+
+          <!-- Card 2: Letras Sincronizadas LRCLIB -->
+          <article class="bento-card">
+            <span class="card-badge" data-i18n="card2_badge">KARAOKE EN VIVO</span>
+            <div class="bento-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="card2_title">Letras Sincronizadas</h3>
+            <p data-i18n="card2_desc">Línea a línea en tiempo real con LRCLIB. Haz clic en cualquier estrofa para saltar el audio al instante.</p>
+            <div class="karaoke-preview">
+              <span class="karaoke-line">Is this the real life?</span>
+              <span class="karaoke-line active">♪ Is this just fantasy?</span>
+              <span class="karaoke-line">Caught in a landslide...</span>
+            </div>
+          </article>
+
+          <!-- Card 3: Visualizador y Ecualizador de 5 bandas -->
+          <article class="bento-card">
+            <span class="card-badge" data-i18n="card3_badge">WEB AUDIO API</span>
+            <div class="bento-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14"></line>
+                <line x1="4" y1="10" x2="4" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12" y2="3"></line>
+                <line x1="20" y1="21" x2="20" y2="16"></line>
+                <line x1="20" y1="12" x2="20" y2="3"></line>
+                <line x1="1" y1="14" x2="7" y2="14"></line>
+                <line x1="9" y1="8" x2="15" y2="8"></line>
+                <line x1="17" y1="16" x2="23" y2="16"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="card3_title">Visualizador & Ecualizador</h3>
+            <p data-i18n="card3_desc">Espectro en canvas en tiempo real y ecualizador de 5 bandas con presets: Flat, Bass, Vocal, Rock y Night.</p>
+            <div class="eq-preview-bars">
+              <div class="eq-col"><div class="eq-fill" style="height: 65%;"></div></div>
+              <div class="eq-col"><div class="eq-fill" style="height: 85%;"></div></div>
+              <div class="eq-col"><div class="eq-fill" style="height: 45%;"></div></div>
+              <div class="eq-col"><div class="eq-fill" style="height: 70%;"></div></div>
+              <div class="eq-col"><div class="eq-fill" style="height: 90%;"></div></div>
+            </div>
+          </article>
+
+          <!-- Card 4: Importador Spotify (Wide) -->
+          <article class="bento-card wide">
+            <span class="card-badge" data-i18n="card4_badge">MIGRACIÓN SENCILLA</span>
+            <div class="bento-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+            </div>
+            <h3 data-i18n="card4_title">Importación desde Spotify sin Cuenta Premium</h3>
+            <p data-i18n="card4_desc">
+              Pega cualquier enlace público de playlist de Spotify o sube un archivo CSV de Exportify. Pulse busca cada tema en YouTube Music, calcula la coincidencia exacta por título, artista y duración, y guarda la lista en tu equipo.
+            </p>
+          </article>
+
+          <!-- Card 5: Tareas con Pomodoro -->
+          <article class="bento-card">
+            <span class="card-badge" data-i18n="card5_badge">PRODUCTIVIDAD</span>
+            <div class="bento-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <h3 data-i18n="card5_title">Pomodoro Infalible</h3>
+            <p data-i18n="card5_desc">
+              Ciclos de trabajo y descanso con reloj basado en timestamp para evitar desfases. Cada sesión completada suma puntos a tu tarea activa.
+            </p>
+          </article>
+
+          <!-- Card 6: Radio Lofi Integrada -->
+          <article class="bento-card">
+            <span class="card-badge" data-i18n="card6_badge">ALWAYS-ON</span>
+            <div class="bento-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"></path>
+                <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"></path>
+                <circle cx="12" cy="12" r="2"></circle>
+                <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"></path>
+                <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"></path>
+              </svg>
+            </div>
+            <h3 data-i18n="card6_title">5 Emisoras Lofi en Vivo</h3>
+            <p data-i18n="card6_desc">
+              Lofi, Chillhop, Jazz, Ambient y Lounge. Se pausa sola si pones una canción y se reanuda cuando tú lo decidas.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Comparativa: Por qué Pulse -->
+      <section id="comparativa" class="wrap">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="comp_eyebrow">DIFERENCIAS CLARAS</p>
+          <h2 data-i18n="comp_title">¿Por qué usar Pulse en lugar de Spotify o un navegador?</h2>
+          <p data-i18n="comp_subtitle">Compara el rendimiento y la privacidad frente a las alternativas tradicionales.</p>
+        </div>
+
+        <div class="comparison-section">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th data-i18n="th_feature">Característica</th>
+                <th class="highlight">Pulse (Tauri v2)</th>
+                <th>Spotify Free</th>
+                <th>YouTube en Chrome</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-i18n="row1_label">Consumo de Memoria RAM</td>
+                <td class="highlight"><strong>~50 MB - 80 MB</strong></td>
+                <td>350 MB - 600 MB</td>
+                <td>600 MB - 1.2 GB</td>
+              </tr>
+              <tr>
+                <td data-i18n="row2_label">Anuncios o Interrupciones</td>
+                <td class="highlight"><span class="check">✓ Ninguno (Cero anuncios)</span></td>
+                <td><span class="cross">✕ Cada 3 o 4 canciones</span></td>
+                <td><span class="cross">✕ Video ads y banners</span></td>
+              </tr>
+              <tr>
+                <td data-i18n="row3_label">Letras Sincronizadas (Karaoke)</td>
+                <td class="highlight"><span class="check">✓ Gratuitas (LRCLIB)</span></td>
+                <td>Limitadas / Requiere Premium</td>
+                <td><span class="cross">✕ No disponibles</span></td>
+              </tr>
+              <tr>
+                <td data-i18n="row4_label">Descargas Offline en Disco</td>
+                <td class="highlight"><span class="check">✓ Archivos reales en audio puro</span></td>
+                <td><span class="cross">✕ Solo en Premium</span></td>
+                <td><span class="cross">✕ Solo con YouTube Premium</span></td>
+              </tr>
+              <tr>
+                <td data-i18n="row5_label">Modo Mini Player flotante</td>
+                <td class="highlight"><span class="check">✓ Sí (Always-on-Top)</span></td>
+                <td><span class="cross">✕ No nativo</span></td>
+                <td>Picture-in-picture (solo video)</td>
+              </tr>
+              <tr>
+                <td data-i18n="row6_label">Gestor de Tareas y Pomodoro</td>
+                <td class="highlight"><span class="check">✓ Integrado en la misma ventana</span></td>
+                <td><span class="cross">✕ No</span></td>
+                <td><span class="cross">✕ No</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Offline & Mini Mode -->
+      <section id="offline" class="wrap">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="offline_eyebrow">DISEÑADO PARA CUALQUIER SITUACIÓN</p>
+          <h2 data-i18n="offline_title">Creado para aviones, cafeterías y Wi-Fi inestable</h2>
+          <p data-i18n="offline_subtitle">Las descargas son archivos reales en tu disco, servidos localmente con el mismo ecualizador y visualizador.</p>
+        </div>
+
+        <div class="bento-grid">
+          <article class="bento-card">
+            <span class="card-badge" data-i18n="off1_badge">OFFLINE FIRST</span>
+            <h3 data-i18n="off1_title">Descargas reales en tu disco</h3>
+            <p data-i18n="off1_desc">
+              Elige el preset de calidad (Mejor disponible, 160, 128 o 96 kbps). Si una canción está en tu almacenamiento local, Pulse jamás la solicita por internet.
+            </p>
+          </article>
+
+          <article class="bento-card">
+            <span class="card-badge" data-i18n="off2_badge">ALMACENAMIENTO TRANSPARENTE</span>
+            <h3 data-i18n="off2_title">Gestor de almacenamiento integrado</h3>
+            <p data-i18n="off2_desc">
+              Consulta exactamente cuántos megabytes ocupa cada canción, espacio libre en disco y borra canciones con un solo clic desde Ajustes.
+            </p>
+          </article>
+
+          <article class="bento-card">
+            <span class="card-badge" data-i18n="off3_badge">MINI PLAYER</span>
+            <h3 data-i18n="off3_title">Modo Mini Flotante (Always-on-top)</h3>
+            <p data-i18n="off3_desc">
+              Reduce Pulse a una barra compacta siempre visible sobre tu editor de código o navegador con el reloj pomodoro, tarea activa y controles de música.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Arquitectura en Rust -->
+      <section id="arquitectura" class="wrap">
+        <div class="arch-box">
+          <p class="eyebrow" data-i18n="arch_eyebrow">INGENIERÍA ROBUSTA</p>
+          <h2 data-i18n="arch_title">¿Cómo funciona la arquitectura técnica en Rust?</h2>
+          <p data-i18n="arch_subtitle">
+            Pulse no utiliza APIs frágiles ni servidores intermedios de terceros. Todo corre localmente en tu propio equipo.
           </p>
-        </div>
 
-        <figure class="shot">
-          <img
-            src="preview.png"
-            alt="Pulse with a task list on the left, a running pomodoro timer and synced lyrics in the centre, and the music player on the right."
-            width="1440"
-            height="1000"
-          />
-        </figure>
-      </section>
+          <div class="arch-flow">
+            <div class="arch-node">
+              <div class="arch-node-title">1. innertube.rs</div>
+              <div class="arch-node-desc">Consulta metadatos, artistas, álbumes y búsqueda directa en el catálogo de YouTube Music.</div>
+            </div>
 
-      <section id="features" class="wrap" aria-labelledby="features-title">
-        <div class="section-head">
-          <div>
-            <h2 id="features-title">Everything you need to sit down and work</h2>
-            <p>
-              Built for long sessions: clear priorities, a timer that does not
-              drift, and music that gets out of the way.
-            </p>
+            <div class="arch-node">
+              <div class="arch-node-title">2. ytdlp.rs</div>
+              <div class="arch-node-desc">Resuelve el enlace de stream de audio mediante un sidecar nativo de yt-dlp con caché en memoria.</div>
+            </div>
+
+            <div class="arch-node">
+              <div class="arch-node-title">3. proxy.rs</div>
+              <div class="arch-node-desc">Proxy HTTP local en 127.0.0.1 que atiende peticiones Range para saltar en la canción sin restricciones de CORS.</div>
+            </div>
+
+            <div class="arch-node">
+              <div class="arch-node-title">4. lyrics.rs</div>
+              <div class="arch-node-desc">Parser y sincronizador de marcas de tiempo LRC con LRCLIB para pintar el karaoke al milisegundo.</div>
+            </div>
           </div>
-        </div>
-
-        <div class="grid">
-          <article class="card">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 6h11M9 12h11M9 18h11" />
-                <path d="m3 6 1.5 1.5L6 6M3 12l1.5 1.5L6 12M3 18l1.5 1.5L6 18" />
-              </svg>
-            </span>
-            <h3>Tasks with real priorities</h3>
-            <p>
-              High, medium and low groups, tags, pomodoro estimates and drag to
-              reorder. Quick add understands <code>!alta</code>,
-              <code>#tag</code> and <code>*3</code>.
-            </p>
-          </article>
-
-          <article class="card">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="13" r="8" />
-                <path d="M12 9v4l2.5 1.5M9 2h6" />
-              </svg>
-            </span>
-            <h3>A pomodoro that keeps time</h3>
-            <p>
-              Focus and break cycles, configurable long breaks, daily stats and a
-              streak. The timer stores an end timestamp, so it never drifts.
-            </p>
-          </article>
-
-          <article class="card">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14" />
-              </svg>
-            </span>
-            <h3>YouTube Music, simplified</h3>
-            <p>
-              Search songs, artists and albums, build a queue and seek for real.
-              The audio is resolved locally by yt-dlp, not by an external server.
-            </p>
-          </article>
-
-          <article class="card">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 6v12M8 9v6M12 5v14M16 8v8M20 10v4" />
-              </svg>
-            </span>
-            <h3>Synced lyrics</h3>
-            <p>
-              Line-by-line lyrics matched by artist, title and duration through
-              lrclib, with a manual search when nothing is playing.
-            </p>
-          </article>
-
-          <article class="card">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 12h3l2-6 4 12 2-6h3l2 3h2" />
-              </svg>
-            </span>
-            <h3>Visualizer and equalizer</h3>
-            <p>
-              A spectrum drawn from the real signal and a five-band equalizer with
-              presets. Both share the same Web Audio graph, so what you see is
-              what you hear.
-            </p>
-          </article>
-
-          <article class="card">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M8 6h9a3 3 0 0 1 3 3v9" />
-                <path d="M16 18H7a3 3 0 0 1-3-3V6" />
-                <circle cx="8" cy="9" r="1" />
-                <circle cx="16" cy="15" r="1" />
-              </svg>
-            </span>
-            <h3>Spotify import</h3>
-            <p>
-              Paste a public playlist link or upload an Exportify CSV. Pulse
-              matches each song on YouTube Music and saves the list on your
-              machine.
-            </p>
-          </article>
-
-          <article class="card">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 3v12" />
-                <path d="m7 10 5 5 5-5" />
-                <path d="M4 19h16" />
-              </svg>
-            </span>
-            <h3>Offline downloads</h3>
-            <p>
-              Pick a quality and keep songs on disk. They play through the same
-              equalizer, show up in a storage manager, and work without a network.
-            </p>
-          </article>
-
-          <article class="card">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="5" width="18" height="13" rx="2" />
-                <path d="M8 21h8M12 18v3" />
-              </svg>
-            </span>
-            <h3>Always-visible mini mode</h3>
-            <p>
-              Shrink Pulse to a compact, always-on-top window with the timer, the
-              active task and music controls while you work elsewhere.
-            </p>
-          </article>
-
-          <article class="card">
-            <span class="icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 12a8 8 0 1 1-2.3-5.6" />
-                <path d="M20 4v5h-5" />
-              </svg>
-            </span>
-            <h3>Automatic updates</h3>
-            <p>
-              New versions are published on GitHub and signed. Pulse checks in
-              the background and installs the update from Settings.
-            </p>
-          </article>
         </div>
       </section>
 
-      <section id="offline" class="wrap" aria-labelledby="offline-title">
-        <div class="section-head">
-          <div>
-            <h2 id="offline-title">Made for airplanes, cafés and bad Wi-Fi</h2>
-            <p>
-              Downloads are real files on your disk, served locally to the player.
-              Seeking, the equalizer and the visualizer keep working the same way.
-            </p>
+      <!-- Banner Final de Descarga -->
+      <section class="wrap">
+        <div class="cta-banner">
+          <h2 data-i18n="cta_title">Empieza a trabajar con Pulse hoy</h2>
+          <p data-i18n="cta_desc">
+            Descarga el instalador para Windows. Sin registros, sin suscripciones y con actualizaciones automáticas verificadas desde GitHub Releases.
+          </p>
+          <div class="cta-btn-group">
+            <a class="button primary" href="https://github.com/zbrau/pulse/releases/latest" target="_blank" rel="noreferrer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span data-i18n="cta_btn">Descargar Instalador (.exe)</span>
+            </a>
+            <a class="button secondary" href="https://github.com/zbrau/pulse" target="_blank" rel="noreferrer">
+              <span data-i18n="cta_repo">Explorar Repositorio en GitHub</span>
+            </a>
           </div>
-        </div>
-
-        <div class="split">
-          <article class="panel">
-            <h3>Downloads you control</h3>
-            <p>
-              Choose a quality preset, download from the search results and manage
-              everything in one place.
-            </p>
-            <ul>
-              <li><span><strong>Quality presets.</strong> From the best available audio to a smaller 96 kbps cap.</span></li>
-              <li><span><strong>No re-encoding.</strong> Without ffmpeg, Pulse picks the original track under the limit instead of transcoding.</span></li>
-              <li><span><strong>Storage manager.</strong> See how much each song uses, total size, free disk space and delete on the spot.</span></li>
-              <li><span><strong>Offline first.</strong> If a song is downloaded, the player never asks the network for it.</span></li>
-            </ul>
-          </article>
-
-          <article class="panel">
-            <h3>Small window, same session</h3>
-            <p>
-              Mini mode is not a second app: it resizes the same window and keeps
-              everything running.
-            </p>
-            <ul>
-              <li><span><strong>Always on top.</strong> The timer stays visible above your editor or browser.</span></li>
-              <li><span><strong>Active task and music.</strong> See what you are working on and control playback without restoring the full window.</span></li>
-              <li><span><strong>No state lost.</strong> Queue, lyrics, radio and stats stay exactly where they were.</span></li>
-              <li><span><strong>One click back.</strong> Return to the normal layout and size when you are done.</span></li>
-            </ul>
-          </article>
-        </div>
-      </section>
-
-      <section id="how" class="wrap" aria-labelledby="how-title">
-        <div class="section-head">
-          <div>
-            <h2 id="how-title">Three steps, no setup</h2>
-            <p>
-              Pulse stores everything locally. There is no sign-up, no sync service
-              and no telemetry.
-            </p>
-          </div>
-        </div>
-
-        <div class="steps">
-          <article class="step">
-            <h3>Write down the work</h3>
-            <p>
-              Add tasks with a priority and an estimate. The list groups itself and
-              remembers the active task between sessions.
-            </p>
-          </article>
-          <article class="step">
-            <h3>Start a session</h3>
-            <p>
-              Press space or hit start. The timer survives losing focus, and each
-              completed pomodoro adds a point to the active task.
-            </p>
-          </article>
-          <article class="step">
-            <h3>Put something on</h3>
-            <p>
-              Search YouTube Music or pick a lofi station. The radio pauses when a
-              song starts, so there is only ever one source of sound.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section class="wrap" aria-labelledby="download-title">
-        <div class="banner">
-          <div>
-            <h2 id="download-title">Try Pulse on Windows</h2>
-            <p>
-              Download the installer from GitHub Releases. The app is not
-              code-signed yet, so SmartScreen may ask for confirmation the first
-              time. Updates after that are signed and verified automatically.
-            </p>
-          </div>
-          <a
-            class="button primary"
-            href="https://github.com/zbrau/pulse/releases/latest"
-          >
-            Download the latest release
-          </a>
         </div>
       </section>
     </main>
 
+    <!-- Footer -->
     <footer>
       <div class="wrap">
-        <span>Pulse &middot; built with Tauri, React and Rust.</span>
-        <span class="foot-links">
-          <a href="https://github.com/zbrau/pulse">GitHub</a>
-          <a href="https://github.com/zbrau/pulse/blob/main/README.md">README</a>
-          <a href="https://github.com/zbrau/pulse/issues">Issues</a>
-          <a href="https://github.com/zbrau/pulse/blob/main/LICENSE">MIT</a>
-        </span>
+        <div>
+          <strong>Pulse</strong> &middot; Creado con Tauri v2, React, Rust y amor por la música.
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/zbrau/pulse" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/zbrau/pulse/releases" target="_blank" rel="noreferrer">Releases</a>
+          <a href="https://github.com/zbrau/pulse/issues" target="_blank" rel="noreferrer">Reportar Bug</a>
+          <a href="https://github.com/zbrau/pulse/blob/main/LICENSE" target="_blank" rel="noreferrer">Licencia MIT</a>
+        </div>
       </div>
     </footer>
+
+    <!-- Script de Animaciones Interactivas e Internacionalización (ES / EN) -->
+    <script>
+      // 1. Generar barras del ecualizador dinámico en el footer de la ventana
+      const eqContainer = document.getElementById('eqBars');
+      const BAR_COUNT = 36;
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'v-bar';
+        const delay = (Math.sin(i * 0.4) * 0.6 + 0.6).toFixed(2);
+        const duration = (0.7 + Math.random() * 0.8).toFixed(2);
+        bar.style.animationDelay = `${delay}s`;
+        bar.style.animationDuration = `${duration}s`;
+        eqContainer.appendChild(bar);
+      }
+
+      // 2. Diccionario Bilingüe (Español / Inglés)
+      const translations = {
+        es: {
+          nav_features: "Características",
+          nav_offline: "Offline & Mini",
+          nav_compare: "Comparativa",
+          nav_arch: "Arquitectura",
+          hero_badge: "Pulse v0.2.1 ya disponible para Windows 10/11",
+          hero_title: "Tu espacio de enfoque y música en una sola ventana.",
+          hero_desc: "Pulse une tus tareas por prioridad, temporizador Pomodoro, radio lofi y YouTube Music con letras sincronizadas. Cero anuncios, sin suscripciones de pago y con descargas offline.",
+          hero_cta: "Descargar para Windows",
+          hero_code: "Código Abierto (Rust + React)",
+          meta_free: "Gratuito y Open Source",
+          meta_tauri: "Tauri v2 (ultraligero)",
+          meta_offline: "Funciona sin internet",
+          features_eyebrow: "DISEÑADO PARA TRABAJAR DE VERDAD",
+          features_title: "Música sin límites, enfoque sin distracciones",
+          features_subtitle: "Todo lo necesario para sesiones productivas de 4 a 8 horas sin abrir pestañas innecesarias.",
+          card1_badge: "AUDIO PURO",
+          card1_title: "Catálogo Universal con YouTube Music",
+          card1_desc: "Busca cualquier canción, artista o álbum. El audio se extrae como stream puro de alta calidad (Opus a 160 kbps / AAC) mediante yt-dlp como sidecar local en Rust, sin anuncios de video ni scripts de rastreo.",
+          card2_badge: "KARAOKE EN VIVO",
+          card2_title: "Letras Sincronizadas",
+          card2_desc: "Línea a línea en tiempo real con LRCLIB. Haz clic en cualquier estrofa para saltar el audio al instante.",
+          card3_badge: "WEB AUDIO API",
+          card3_title: "Visualizador & Ecualizador",
+          card3_desc: "Espectro en canvas en tiempo real y ecualizador de 5 bandas con presets: Flat, Bass, Vocal, Rock y Night.",
+          card4_badge: "MIGRACIÓN SENCILLA",
+          card4_title: "Importación desde Spotify sin Cuenta Premium",
+          card4_desc: "Pega cualquier enlace público de playlist de Spotify o sube un archivo CSV de Exportify. Pulse busca cada tema en YouTube Music, calcula la coincidencia exacta por título, artista y duración, y guarda la lista en tu equipo.",
+          card5_badge: "PRODUCTIVIDAD",
+          card5_title: "Pomodoro Infalible",
+          card5_desc: "Ciclos de trabajo y descanso con reloj basado en timestamp para evitar desfases. Cada sesión completada suma puntos a tu tarea activa.",
+          card6_badge: "ALWAYS-ON",
+          card6_title: "5 Emisoras Lofi en Vivo",
+          card6_desc: "Lofi, Chillhop, Jazz, Ambient y Lounge. Se pausa sola si pones una canción y se reanuda cuando tú lo decidas.",
+          comp_eyebrow: "DIFERENCIAS CLARAS",
+          comp_title: "¿Por qué usar Pulse en lugar de Spotify o un navegador?",
+          comp_subtitle: "Compara el rendimiento y la privacidad frente a las alternativas tradicionales.",
+          th_feature: "Característica",
+          row1_label: "Consumo de Memoria RAM",
+          row2_label: "Anuncios o Interrupciones",
+          row3_label: "Letras Sincronizadas (Karaoke)",
+          row4_label: "Descargas Offline en Disco",
+          row5_label: "Modo Mini Player flotante",
+          row6_label: "Gestor de Tareas y Pomodoro",
+          offline_eyebrow: "DISEÑADO PARA CUALQUIER SITUACIÓN",
+          offline_title: "Creado para aviones, cafeterías y Wi-Fi inestable",
+          offline_subtitle: "Las descargas son archivos reales en tu disco, servidos localmente con el mismo ecualizador y visualizador.",
+          off1_badge: "OFFLINE FIRST",
+          off1_title: "Descargas reales en tu disco",
+          off1_desc: "Elige el preset de calidad (Mejor disponible, 160, 128 o 96 kbps). Si una canción está en tu almacenamiento local, Pulse jamás la solicita por internet.",
+          off2_badge: "ALMACENAMIENTO TRANSPARENTE",
+          off2_title: "Gestor de almacenamiento integrado",
+          off2_desc: "Consulta exactamente cuántos megabytes ocupa cada canción, espacio libre en disco y borra canciones con un solo clic desde Ajustes.",
+          off3_badge: "MINI PLAYER",
+          off3_title: "Modo Mini Flotante (Always-on-top)",
+          off3_desc: "Reduce Pulse a una barra compacta siempre visible sobre tu editor de código o navegador con el reloj pomodoro, tarea activa y controles de música.",
+          arch_eyebrow: "INGENIERÍA ROBUSTA",
+          arch_title: "¿Cómo funciona la arquitectura técnica en Rust?",
+          arch_subtitle: "Pulse no utiliza APIs frágiles ni servidores intermedios de terceros. Todo corre localmente en tu propio equipo.",
+          cta_title: "Empieza a trabajar con Pulse hoy",
+          cta_desc: "Descarga el instalador para Windows. Sin registros, sin suscripciones y con actualizaciones automáticas verificadas desde GitHub Releases.",
+          cta_btn: "Descargar Instalador (.exe)",
+          cta_repo: "Explorar Repositorio en GitHub"
+        },
+        en: {
+          nav_features: "Features",
+          nav_offline: "Offline & Mini",
+          nav_compare: "Comparison",
+          nav_arch: "Architecture",
+          hero_badge: "Pulse v0.2.1 now available for Windows 10/11",
+          hero_title: "Focus and music in one quiet window.",
+          hero_desc: "Pulse combines your task list with priorities, a pomodoro timer, lofi radio and YouTube Music with synced lyrics. No ads, no paid subscriptions, and offline downloads.",
+          hero_cta: "Download for Windows",
+          hero_code: "Open Source (Rust + React)",
+          meta_free: "Free & Open Source",
+          meta_tauri: "Tauri v2 (Ultra-lightweight)",
+          meta_offline: "Works without network",
+          features_eyebrow: "BUILT FOR REAL WORK",
+          features_title: "Music without limits, focus without noise",
+          features_subtitle: "Everything you need for productive 4 to 8 hour deep work sessions without unnecessary tabs.",
+          card1_badge: "PURE AUDIO",
+          card1_title: "Universal Catalog via YouTube Music",
+          card1_desc: "Search any song, artist, or album. Audio is resolved locally as pure high-quality stream (160 kbps Opus / AAC) via yt-dlp as a Rust sidecar, with no video ads or tracking scripts.",
+          card2_badge: "LIVE KARAOKE",
+          card2_title: "Time-Synced Lyrics",
+          card2_desc: "Line-by-line real-time lyrics powered by LRCLIB. Click any lyric line to jump the song immediately.",
+          card3_badge: "WEB AUDIO API",
+          card3_title: "Live Visualizer & Equalizer",
+          card3_desc: "Real-time canvas frequency spectrum and 5-band EQ with presets: Flat, Bass, Vocal, Rock, and Night.",
+          card4_badge: "EFFORTLESS MIGRATION",
+          card4_title: "Spotify Playlist Import (No Premium Needed)",
+          card4_desc: "Paste any public Spotify playlist link or upload an Exportify CSV. Pulse matches every song on YouTube Music with precise scoring and saves it locally.",
+          card5_badge: "PRODUCTIVITY",
+          card5_title: "Drift-Free Pomodoro",
+          card5_desc: "Focus and break cycles with timestamp-based clock preventing timer drift. Completed pomodoros count toward your active task.",
+          card6_badge: "ALWAYS-ON",
+          card6_title: "5 Live Lofi Radio Streams",
+          card6_desc: "Lofi, Chillhop, Jazz, Ambient, and Lounge. Auto-pauses when you play a song and resumes when you want.",
+          comp_eyebrow: "CLEAR DIFFERENCES",
+          comp_title: "Why choose Pulse over Spotify or a browser tab?",
+          comp_subtitle: "Compare memory footprint, privacy, and feature set against traditional alternatives.",
+          th_feature: "Feature",
+          row1_label: "RAM Memory Usage",
+          row2_label: "Ads or Interruptions",
+          row3_label: "Time-Synced Lyrics (Karaoke)",
+          row4_label: "Offline Storage on Disk",
+          row5_label: "Floating Mini Player",
+          row6_label: "Integrated Task Manager & Pomodoro",
+          offline_eyebrow: "DESIGNED FOR ANY CONDITION",
+          offline_title: "Built for airplanes, cafés, and flaky Wi-Fi",
+          offline_subtitle: "Downloads are actual audio files on disk, served locally through the same equalizer and visualizer.",
+          off1_badge: "OFFLINE FIRST",
+          off1_title: "Real files on your disk",
+          off1_desc: "Select your quality preset (Best available, 160, 128, or 96 kbps). Once downloaded, Pulse never calls the network for that song.",
+          off2_badge: "TRANSPARENT STORAGE",
+          off2_title: "Integrated Storage Manager",
+          off2_desc: "Inspect how many megabytes each song uses, check free disk space, and delete files on the spot from Settings.",
+          off3_badge: "MINI PLAYER",
+          off3_title: "Floating Mini Mode (Always-on-top)",
+          off3_desc: "Shrink Pulse to a compact, pinned window over your IDE or browser with timer, active task, and playback controls.",
+          arch_eyebrow: "SOLID ENGINEERING",
+          arch_title: "How does the Rust architecture work?",
+          arch_subtitle: "Pulse doesn't rely on brittle third-party scraping servers. Everything runs locally on your machine.",
+          cta_title: "Start working with Pulse today",
+          cta_desc: "Download the Windows installer. No accounts, no subscriptions, and automated verified updates via GitHub Releases.",
+          cta_btn: "Download Installer (.exe)",
+          cta_repo: "Explore GitHub Repository"
+        }
+      };
+
+      function setLanguage(lang) {
+        document.documentElement.setAttribute('lang', lang);
+        document.documentElement.setAttribute('data-lang', lang);
+        
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          if (translations[lang] && translations[lang][key]) {
+            el.innerHTML = translations[lang][key];
+          }
+        });
+
+        document.getElementById('btn-es').classList.toggle('active', lang === 'es');
+        document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+        localStorage.setItem('pulse_lang', lang);
+      }
+
+      // Detectar idioma previo
+      const savedLang = localStorage.getItem('pulse_lang');
+      if (savedLang && (savedLang === 'en' || savedLang === 'es')) {
+        setLanguage(savedLang);
+      }
+    </script>
   </body>
 </html>
