@@ -1,7 +1,7 @@
 {
   "name": "pulse-desktop",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Desktop focus app: tasks, pomodoro, lofi radio and YouTube Music with synced lyrics.",
   "license": "MIT",
   "type": "module",
