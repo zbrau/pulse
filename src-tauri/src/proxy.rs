@@ -4,7 +4,8 @@
 //! `Range` que necesita para el seek), así que se sirve el stream desde
 //! 127.0.0.1 pasando la petición de rango tal cual.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::io::SeekFrom;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -15,8 +16,11 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use futures_util::StreamExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::Mutex;
+use tokio_util::io::ReaderStream;
 
+use crate::downloads;
 use crate::ytdlp::{self, Resolved};
 
 const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
@@ -26,17 +30,31 @@ pub struct AppState {
     pub client: reqwest::Client,
     pub ytdlp: Option<PathBuf>,
     pub base_url: String,
+    pub downloads: PathBuf,
+    pub downloading: std::sync::Mutex<HashSet<String>>,
     cache: Mutex<HashMap<String, Resolved>>,
 }
 
 impl AppState {
-    pub fn new(client: reqwest::Client, ytdlp: Option<PathBuf>, base_url: String) -> Self {
+    pub fn new(
+        client: reqwest::Client,
+        ytdlp: Option<PathBuf>,
+        base_url: String,
+        downloads: PathBuf,
+    ) -> Self {
         Self {
             client,
             ytdlp,
             base_url,
+            downloads,
+            downloading: std::sync::Mutex::new(HashSet::new()),
             cache: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Archivo ya descargado para escuchar sin conexión.
+    pub fn offline_path(&self, id: &str) -> Option<PathBuf> {
+        downloads::find_file(&self.downloads, id)
     }
 
     async fn cached(&self, id: &str) -> Option<Resolved> {
@@ -84,6 +102,7 @@ pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/health", get(|| async { "ok" }))
         .route("/stream/{id}", get(stream).options(stream_options))
+        .route("/offline/{id}", get(offline).options(stream_options))
         .with_state(state)
 }
 
@@ -135,6 +154,127 @@ async fn stream(
         )
             .into_response(),
     }
+}
+
+/// Interpreta `bytes=inicio-fin` (también `bytes=inicio-` y sufijos).
+fn parse_range(value: &str, total: u64) -> Option<(u64, u64)> {
+    let spec = value.trim().strip_prefix("bytes=")?;
+    let (start, end) = spec.split_once('-')?;
+
+    if start.trim().is_empty() {
+        let length = end.trim().parse::<u64>().ok()?;
+        if length == 0 || total == 0 {
+            return None;
+        }
+        return Some((total.saturating_sub(length), total - 1));
+    }
+
+    let start = start.trim().parse::<u64>().ok()?;
+    if start >= total {
+        return None;
+    }
+
+    let end = if end.trim().is_empty() {
+        total - 1
+    } else {
+        end.trim().parse::<u64>().ok()?.min(total - 1)
+    };
+
+    if end < start {
+        return None;
+    }
+
+    Some((start, end))
+}
+
+/// Sirve un archivo ya descargado con el mismo contrato que `/stream`.
+async fn offline(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(path) = state.offline_path(&id) else {
+        return (
+            StatusCode::NOT_FOUND,
+            [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+            "descarga no encontrada",
+        )
+            .into_response();
+    };
+
+    let total = match tokio::fs::metadata(&path).await {
+        Ok(meta) => meta.len(),
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+                format!("no se pudo leer la descarga: {err}"),
+            )
+                .into_response();
+        }
+    };
+
+    let range = headers
+        .get(header::RANGE)
+        .and_then(|value| value.to_str().ok());
+
+    let (status, start, end) = match range {
+        Some(value) => match parse_range(value, total) {
+            Some((start, end)) => (StatusCode::PARTIAL_CONTENT, start, end),
+            None => {
+                return allow_cors(
+                    Response::builder()
+                        .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                        .header(header::CONTENT_RANGE, format!("bytes */{total}")),
+                )
+                .body(Body::empty())
+                .unwrap_or_else(|_| StatusCode::RANGE_NOT_SATISFIABLE.into_response());
+            }
+        },
+        None => (StatusCode::OK, 0, total.saturating_sub(1)),
+    };
+
+    let length = if total == 0 { 0 } else { end - start + 1 };
+
+    let mut file = match tokio::fs::File::open(&path).await {
+        Ok(file) => file,
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+                format!("no se pudo abrir la descarga: {err}"),
+            )
+                .into_response();
+        }
+    };
+
+    if start > 0 && file.seek(SeekFrom::Start(start)).await.is_err() {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+            "no se pudo posicionar el archivo",
+        )
+            .into_response();
+    }
+
+    let body = Body::from_stream(ReaderStream::new(file.take(length)));
+
+    let mut builder = Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, downloads::mime_for(&path))
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header(header::CONTENT_LENGTH, length.to_string());
+
+    if status == StatusCode::PARTIAL_CONTENT {
+        builder = builder.header(
+            header::CONTENT_RANGE,
+            format!("bytes {start}-{end}/{total}"),
+        );
+    }
+
+    allow_cors(builder)
+        .body(body)
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
 async fn proxy(

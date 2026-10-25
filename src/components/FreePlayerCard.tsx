@@ -3,6 +3,8 @@ import {
   AlertCircle,
   Check,
   ChevronRight,
+  Download,
+  HardDriveDownload,
   LibraryBig,
   ListMusic,
   ListPlus,
@@ -24,10 +26,57 @@ import {
 } from 'lucide-react'
 import { usePlayerStore } from '../store/usePlayerStore'
 import { useUi } from '../store/useUi'
+import { useDownloads } from '../store/useDownloads'
 import { Visualizer } from './Visualizer'
 import { findArtist, isDesktop, searchArtists, searchSongs } from '../lib/music'
 import { formatTime } from '../lib/date'
 import type { ArtistRef, MusicTrack } from '../types'
+
+/** Botón de descarga con estado: descargada, en curso o disponible. */
+function DownloadButton({ track }: { track: MusicTrack }) {
+  const downloaded = useDownloads((state) =>
+    state.entries.some((entry) => entry.id === track.id),
+  )
+  const progress = useDownloads((state) => state.progress[track.id])
+  const start = useDownloads((state) => state.start)
+
+  const pending = Boolean(progress)
+  const label = downloaded
+    ? 'Descargada'
+    : pending
+      ? `Descargando ${Math.round(progress?.percent ?? 0)}%`
+      : 'Descargar para escuchar sin conexión'
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation()
+        if (!downloaded && !pending) void start(track)
+      }}
+      disabled={downloaded || pending}
+      className={`icon-btn size-7 shrink-0 ${
+        downloaded
+          ? 'text-break'
+          : pending
+            ? 'text-accent'
+            : 'text-faint hover:text-fg'
+      }`}
+      title={label}
+      aria-label={`${label}: ${track.title}`}
+    >
+      {downloaded ? (
+        <Check size={13} />
+      ) : pending ? (
+        <span className="tnum text-[9px] font-semibold">
+          {Math.round(progress?.percent ?? 0)}%
+        </span>
+      ) : (
+        <Download size={13} />
+      )}
+    </button>
+  )
+}
 
 export function FreePlayerCard() {
   const {
@@ -43,6 +92,7 @@ export function FreePlayerCard() {
     queue,
     queueIndex,
     error,
+    currentOffline,
     playTrack,
     togglePlay,
     seek,
@@ -71,6 +121,8 @@ export function FreePlayerCard() {
   const openArtist = useUi((state) => state.openArtist)
   const openImport = useUi((state) => state.openImport)
   const openLibrary = useUi((state) => state.openLibrary)
+  const openDownloads = useUi((state) => state.openDownloads)
+  const downloadCount = useDownloads((state) => state.entries.length)
 
   const searchBoxRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -201,6 +253,20 @@ export function FreePlayerCard() {
         </div>
 
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={openDownloads}
+            className="icon-btn relative size-7"
+            title="Escuchar sin conexión"
+            aria-label="Descargas"
+          >
+            <HardDriveDownload size={14} />
+            {downloadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 rounded-full bg-accent px-1 text-[8px] leading-[13px] font-semibold text-bg">
+                {downloadCount}
+              </span>
+            )}
+          </button>
           <button
             type="button"
             onClick={openLibrary}
@@ -371,6 +437,7 @@ export function FreePlayerCard() {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1">
+                      <DownloadButton track={track} />
                       <button
                         type="button"
                         onClick={(e) => handleAddToQueue(e, track)}
@@ -498,7 +565,9 @@ export function FreePlayerCard() {
                   {isBuffering ? (
                     <span className="text-accent/80">preparando audio…</span>
                   ) : (
-                    <span className="text-break/80">stream local</span>
+                    <span className="text-break/80">
+                      {currentOffline ? 'descargada · offline' : 'stream local'}
+                    </span>
                   )}
                   {currentTrack.album && (
                     <>
@@ -508,6 +577,8 @@ export function FreePlayerCard() {
                   )}
                 </div>
               </div>
+
+              <DownloadButton track={currentTrack} />
             </div>
 
             <div>

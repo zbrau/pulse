@@ -1,5 +1,6 @@
 //! Pulse - backend de catálogo (InnerTube) y audio (yt-dlp + proxy local).
 
+mod downloads;
 mod innertube;
 mod lyrics;
 mod proxy;
@@ -20,6 +21,8 @@ struct StreamInfo {
     url: String,
     mime_type: String,
     expires_at: u64,
+    /// El audio sale del disco, no de googlevideo.
+    offline: bool,
 }
 
 #[derive(Serialize)]
@@ -87,12 +90,23 @@ async fn resolve_stream(
         return Err("Falta el id del vídeo".into());
     }
 
+    // Offline primero: si está descargada, no hace falta red ni yt-dlp.
+    if let Some(path) = state.offline_path(&video_id) {
+        return Ok(StreamInfo {
+            url: format!("{}/offline/{video_id}", state.base_url),
+            mime_type: downloads::mime_for(&path).to_string(),
+            expires_at: u64::MAX,
+            offline: true,
+        });
+    }
+
     let resolved = state.resolve(&video_id).await?;
 
     Ok(StreamInfo {
         url: state.stream_url(&video_id),
         mime_type: resolved.mime,
         expires_at: resolved.expires_at,
+        offline: false,
     })
 }
 
@@ -164,6 +178,8 @@ fn app_info(state: State<'_, Arc<AppState>>) -> AppInfo {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let client = reqwest::Client::builder()
                 .connect_timeout(Duration::from_secs(10))
@@ -184,7 +200,10 @@ pub fn run() {
                 }
             };
 
-            let state = Arc::new(AppState::new(client, ytdlp, base_url));
+            let downloads = downloads::default_dir(app.handle());
+            downloads::ensure_dir(&downloads);
+
+            let state = Arc::new(AppState::new(client, ytdlp, base_url, downloads));
             app.manage(state.clone());
 
             tauri::async_runtime::spawn(async move {
@@ -210,7 +229,12 @@ pub fn run() {
             search_lyrics,
             spotify_playlist,
             match_import,
-            app_info
+            app_info,
+            downloads::download_track,
+            downloads::list_downloads,
+            downloads::delete_download,
+            downloads::downloads_info,
+            downloads::reveal_downloads
         ])
         .run(tauri::generate_context!())
         .expect("error al arrancar Pulse");

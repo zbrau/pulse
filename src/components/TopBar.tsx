@@ -1,6 +1,7 @@
-import { CircleDot, Flame, Settings2, Timer } from 'lucide-react'
+import { CircleDot, Download, Flame, Minimize2, Settings2, Timer } from 'lucide-react'
 import { selectToday, useStore } from '../store/useStore'
 import { useUi } from '../store/useUi'
+import { useUpdater } from '../store/useUpdater'
 import { formatLongDate, todayKey } from '../lib/date'
 
 const streakOf = (stats: Record<string, { pomodoros: number }>): number => {
@@ -29,7 +30,17 @@ export function TopBar() {
   const today = useStore(selectToday)
   const stats = useStore((s) => s.stats)
   const openSettings = useUi((s) => s.openSettings)
+  const setMini = useUi((s) => s.setMini)
+  const updateStatus = useUpdater((s) => s.status)
+  const updateVersion = useUpdater((s) => s.version)
+  const dismissed = useUpdater((s) => s.dismissed)
   const streak = streakOf(stats)
+
+  const showUpdate =
+    !dismissed &&
+    (updateStatus === 'available' ||
+      updateStatus === 'downloading' ||
+      updateStatus === 'ready')
 
   return (
     <header className="sticky top-0 z-30 border-b border-line-soft bg-bg/85 backdrop-blur-md">
@@ -62,10 +73,30 @@ export function TopBar() {
               <span className="tnum text-fg">{streak}</span>
             </span>
           )}
+          {showUpdate && (
+            <button
+              type="button"
+              onClick={() => openSettings('music')}
+              className="chip border-accent/35 bg-accent/10 text-accent transition hover:bg-accent/20"
+              title={`Pulse ${updateVersion ?? ''} disponible`}
+            >
+              <Download size={12} />
+              <span className="tnum">v{updateVersion}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setMini(true)}
+            className="icon-btn ml-1"
+            aria-label="Modo mini"
+            title="Modo mini, siempre visible"
+          >
+            <Minimize2 size={16} />
+          </button>
           <button
             type="button"
             onClick={() => openSettings()}
-            className="icon-btn ml-1"
+            className="icon-btn"
             aria-label="Ajustes"
           >
             <Settings2 size={16} />

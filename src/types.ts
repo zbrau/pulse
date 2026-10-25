@@ -2,6 +2,9 @@ export type TimerMode = 'work' | 'short' | 'long'
 
 export type Priority = 'alta' | 'media' | 'baja'
 
+/** Calidad de descarga offline (selector de formato de yt-dlp). */
+export type DownloadQuality = 'best' | 'high' | 'medium' | 'low'
+
 export type Task = {
   id: string
   title: string
@@ -33,6 +36,7 @@ export type Settings = {
   autoStartWork: boolean
   soundOn: boolean
   lofiVolume: number
+  downloadQuality: DownloadQuality
 }
 
 export type DayStat = {

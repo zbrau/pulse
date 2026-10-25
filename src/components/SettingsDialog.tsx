@@ -2,15 +2,19 @@ import { useEffect, useState } from 'react'
 import {
   Check,
   Download,
+  HardDriveDownload,
   Loader2,
   ServerCog,
   Trash2,
 } from 'lucide-react'
 import { Modal } from './Modal'
+import { UpdatePanel } from './UpdatePanel'
 import { useUi, type SettingsTab } from '../store/useUi'
 import { useStore } from '../store/useStore'
+import { useDownloads } from '../store/useDownloads'
 import { todayKey } from '../lib/date'
 import { getEngineInfo, isDesktop, type EngineInfo } from '../lib/music'
+import { formatBytes, QUALITY_OPTIONS } from '../lib/downloads'
 
 function NumberField({
   label,
@@ -91,6 +95,7 @@ function Toggle({
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'focus', label: 'Enfoque' },
   { id: 'music', label: 'Motor' },
+  { id: 'downloads', label: 'Descargas' },
   { id: 'data', label: 'Datos' },
 ]
 
@@ -165,11 +170,19 @@ export function SettingsDialog() {
   const settings = useStore((s) => s.settings)
   const updateSettings = useStore((s) => s.updateSettings)
   const resetStats = useStore((s) => s.resetStats)
+  const openDownloads = useUi((s) => s.openDownloads)
+
+  const downloadInfo = useDownloads((s) => s.info)
+  const downloadCount = useDownloads((s) => s.entries.length)
 
   const [exported, setExported] = useState(false)
 
+  useEffect(() => {
+    if (tab === 'downloads') void useDownloads.getState().refresh()
+  }, [tab])
+
   const exportData = () => {
-    const raw = localStorage.getItem('focus-deck-v1') ?? '{}'
+    const raw = localStorage.getItem('pulse-state-v1') ?? '{}'
     const blob = new Blob([raw], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -184,7 +197,9 @@ export function SettingsDialog() {
   const wipe = () => {
     if (!window.confirm('¿Borrar tareas, estadísticas y ajustes? No se puede deshacer.'))
       return
-    localStorage.removeItem('focus-deck-v1')
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('pulse-')) localStorage.removeItem(key)
+    }
     window.location.reload()
   }
 
@@ -293,6 +308,94 @@ export function SettingsDialog() {
               aria-label="Volumen de la radio en ajustes"
             />
           </label>
+
+          <div className="divider" />
+
+          <div className="flex items-center gap-2">
+            <Download size={14} className="text-accent" />
+            <span className="text-[12px] text-muted">Actualizaciones</span>
+          </div>
+          <UpdatePanel />
+        </div>
+      )}
+
+      {tab === 'downloads' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <HardDriveDownload size={14} className="text-accent" />
+            <span className="text-[12px] text-muted">Escuchar sin conexión</span>
+          </div>
+
+          <div className="rounded-xl border border-line bg-surface-2/40 px-3 py-2.5">
+            <p className="text-[11.5px] text-fg">
+              {downloadCount} {downloadCount === 1 ? 'canción' : 'canciones'} ·{' '}
+              <span className="text-muted">
+                {formatBytes(downloadInfo?.totalBytes ?? 0)}
+              </span>
+            </p>
+            <p
+              className="mt-0.5 truncate font-mono text-[9.5px] text-faint"
+              title={downloadInfo?.dir}
+            >
+              {downloadInfo?.dir ?? 'Carpeta de descargas'}
+            </p>
+            <p className="mt-1 text-[10px] text-faint">
+              {downloadInfo
+                ? `${formatBytes(downloadInfo.freeBytes)} libres en el disco`
+                : 'Calculando espacio…'}
+            </p>
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-[10px] font-medium tracking-[0.12em] text-faint uppercase">
+              Calidad de descarga
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {QUALITY_OPTIONS.map((option) => {
+                const active = settings.downloadQuality === option.id
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => updateSettings({ downloadQuality: option.id })}
+                    className={`rounded-lg border px-2.5 py-2 text-left transition ${
+                      active
+                        ? 'border-accent/45 bg-accent/10'
+                        : 'border-line bg-surface-2/30 hover:border-surface-3'
+                    }`}
+                  >
+                    <span
+                      className={`block text-[11px] font-medium ${
+                        active ? 'text-accent' : 'text-fg'
+                      }`}
+                    >
+                      {option.label}
+                    </span>
+                    <span className="mt-0.5 block text-[9.5px] leading-snug text-faint">
+                      {option.detail}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-1.5 text-[9.5px] leading-relaxed text-faint">
+              Sin ffmpeg no se recodifica: se elige la mejor pista original que
+              quepa en ese límite.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              close()
+              openDownloads()
+            }}
+            className="btn w-full"
+          >
+            <HardDriveDownload size={13} /> Abrir gestor de descargas
+          </button>
         </div>
       )}
 

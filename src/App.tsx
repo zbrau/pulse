@@ -11,16 +11,29 @@ import { ArtistDialog } from './components/ArtistDialog'
 import { PlaylistImportDialog } from './components/PlaylistImportDialog'
 import { LibraryDialog } from './components/LibraryDialog'
 import { EqualizerDialog } from './components/EqualizerDialog'
+import { DownloadsDialog } from './components/DownloadsDialog'
+import { MiniPlayer } from './components/MiniPlayer'
 import { useStore } from './store/useStore'
 import { useUi } from './store/useUi'
+import { useDownloads } from './store/useDownloads'
+import { useUpdater } from './store/useUpdater'
 import { useTimerEngine } from './hooks/useTimerEngine'
+import { isDesktop } from './lib/desktop'
+import { enterMiniWindow, exitMiniWindow } from './lib/window'
 
 function useSpacebar() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== 'Space' || e.metaKey || e.ctrlKey || e.altKey) return
       const ui = useUi.getState()
-      if (ui.settingsOpen || ui.artist || ui.importOpen || ui.libraryOpen || ui.eqOpen) {
+      if (
+        ui.settingsOpen ||
+        ui.artist ||
+        ui.importOpen ||
+        ui.libraryOpen ||
+        ui.eqOpen ||
+        ui.downloadsOpen
+      ) {
         return
       }
       const target = e.target as HTMLElement | null
@@ -39,45 +52,82 @@ function useSpacebar() {
   }, [])
 }
 
+/** Ajusta la ventana real al entrar o salir del modo mini. */
+function useMiniWindow(mini: boolean) {
+  useEffect(() => {
+    if (!isDesktop()) return
+    if (mini) {
+      void enterMiniWindow().catch((err) =>
+        console.warn('[pulse] no se pudo entrar en modo mini:', err),
+      )
+    } else {
+      void exitMiniWindow().catch((err) =>
+        console.warn('[pulse] no se pudo restaurar la ventana:', err),
+      )
+    }
+  }, [mini])
+}
+
 export default function App() {
   useTimerEngine()
   useSpacebar()
 
+  const mini = useUi((s) => s.mini)
+  useMiniWindow(mini)
+
+  useEffect(() => {
+    useDownloads.getState().init()
+  }, [])
+
+  useEffect(() => {
+    // Comprobación silenciosa al arrancar: no molesta si no hay red.
+    if (!isDesktop()) return
+    const id = window.setTimeout(() => {
+      void useUpdater.getState().check()
+    }, 5000)
+    return () => window.clearTimeout(id)
+  }, [])
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <TopBar />
+    <>
+      <div className={mini ? 'hidden' : 'flex min-h-screen flex-col'}>
+        <TopBar />
 
-      <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-4 sm:px-6">
-        <div className="grid gap-4 lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_minmax(300px,344px)]">
-          <div className="order-2 flex flex-col gap-4 lg:order-1">
-            <TasksPanel />
-            <WeekStrip />
+        <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-4 sm:px-6">
+          <div className="grid gap-4 lg:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_minmax(300px,344px)]">
+            <div className="order-2 flex flex-col gap-4 lg:order-1">
+              <TasksPanel />
+              <WeekStrip />
+            </div>
+
+            <div className="order-1 flex flex-col gap-4 lg:order-2">
+              <PomodoroCard />
+              <LyricsCard />
+            </div>
+
+            <div className="order-3 flex flex-col gap-4">
+              <FreePlayerCard />
+              <LofiCard />
+            </div>
           </div>
+        </main>
 
-          <div className="order-1 flex flex-col gap-4 lg:order-2">
-            <PomodoroCard />
-            <LyricsCard />
-          </div>
+        <footer className="mx-auto w-full max-w-[1440px] px-6 pb-6">
+          <p className="text-center text-[10px] leading-relaxed text-faint">
+            Pulse · catálogo por InnerTube · audio con yt-dlp · letras por lrclib ·
+            espacio para iniciar o pausar
+          </p>
+        </footer>
 
-          <div className="order-3 flex flex-col gap-4">
-            <FreePlayerCard />
-            <LofiCard />
-          </div>
-        </div>
-      </main>
+        <SettingsDialog />
+        <ArtistDialog />
+        <PlaylistImportDialog />
+        <LibraryDialog />
+        <EqualizerDialog />
+        <DownloadsDialog />
+      </div>
 
-      <footer className="mx-auto w-full max-w-[1440px] px-6 pb-6">
-        <p className="text-center text-[10px] leading-relaxed text-faint">
-          Pulse · catálogo por InnerTube · audio con yt-dlp · letras por lrclib ·
-          espacio para iniciar o pausar
-        </p>
-      </footer>
-
-      <SettingsDialog />
-      <ArtistDialog />
-      <PlaylistImportDialog />
-      <LibraryDialog />
-      <EqualizerDialog />
-    </div>
+      {mini && <MiniPlayer />}
+    </>
   )
 }

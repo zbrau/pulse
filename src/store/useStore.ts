@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoStartWork: false,
   soundOn: true,
   lofiVolume: 0.45,
+  downloadQuality: 'best',
 }
 
 export const durationFor = (mode: TimerMode, s: Settings): number => {
@@ -396,6 +397,18 @@ export const useStore = create<Store>()(
         stats: s.stats,
         stationId: s.stationId,
       }),
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<Store> & {
+          settings?: Partial<Settings>
+        }
+        return {
+          ...current,
+          ...saved,
+          // Los ajustes nuevos (calidad de descarga) toman su valor por
+          // defecto si el estado guardado es anterior.
+          settings: { ...DEFAULT_SETTINGS, ...(saved?.settings ?? {}) },
+        }
+      },
     },
   ),
 )

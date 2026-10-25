@@ -57,6 +57,8 @@ interface PlayerState {
   queue: MusicTrack[]
   queueIndex: number
   error: string | null
+  /** La pista actual suena desde una descarga local. */
+  currentOffline: boolean
 
   playTrack: (track: MusicTrack, newQueue?: MusicTrack[]) => void
   togglePlay: () => void
@@ -74,6 +76,8 @@ interface PlayerState {
   toggleRepeat: () => void
   toggleShuffle: () => void
   clearError: () => void
+  /** Suelta el audio si la pista indicada es la que está sonando. */
+  unloadTrack: (id: string) => void
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => {
@@ -143,6 +147,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     queue: [],
     queueIndex: -1,
     error: null,
+    currentOffline: false,
 
     playTrack: (track: MusicTrack, newQueue?: MusicTrack[]) => {
       const a = getAudio()
@@ -174,6 +179,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         durationMs: track.durationSec * 1000,
         isBuffering: true,
         error: null,
+        currentOffline: false,
       })
 
       if ('mediaSession' in navigator) {
@@ -191,11 +197,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       resumeAudio()
 
       resolveStream(track.id)
-        .then(({ url }) => {
+        .then(({ url, offline }) => {
           if (token !== loadToken) return
 
           a.src = url
           syncVolume(a, get().volume, get().isMuted)
+          set({ currentOffline: offline })
 
           // WebView2 puede bloquear el autoplay tras el await: arrancamos en
           // silencio (siempre permitido) y subimos el volumen al sonar.
@@ -348,6 +355,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         isBuffering: false,
         progressMs: 0,
         durationMs: 0,
+        currentOffline: false,
       })
     },
 
@@ -363,5 +371,22 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     clearError: () => set({ error: null }),
+
+    unloadTrack: (id) => {
+      if (get().currentTrack?.id !== id) return
+      const a = getAudio()
+      a.pause()
+      a.removeAttribute('src')
+      a.load()
+      loadToken++
+      set({
+        currentTrack: null,
+        isPlaying: false,
+        isBuffering: false,
+        progressMs: 0,
+        durationMs: 0,
+        currentOffline: false,
+      })
+    },
   }
 })
