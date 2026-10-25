@@ -10,6 +10,7 @@ type Status = 'idle' | 'loading' | 'empty' | 'error'
 export function LyricsCard() {
   const track = usePlayerStore((s) => s.currentTrack)
   const progressMs = usePlayerStore((s) => s.progressMs)
+  const seek = usePlayerStore((s) => s.seek)
 
   const [lyrics, setLyrics] = useState<Lyrics | null>(null)
   const [status, setStatus] = useState<Status>('idle')
@@ -48,8 +49,6 @@ export function LyricsCard() {
     return () => {
       alive = false
     }
-    // Sólo recargamos cuando cambia la canción, no en cada render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackId])
 
   const lines = lyrics?.synced ?? null
@@ -105,8 +104,8 @@ export function LyricsCard() {
     <section className="card flex min-h-0 flex-col">
       <div className="card-head">
         <div className="flex min-w-0 items-center gap-2">
-          <Music2 size={14} className="shrink-0 text-faint" />
-          <h2 className="card-title shrink-0">Letra</h2>
+          <Music2 size={14} className="shrink-0 text-accent" />
+          <h2 className="card-title shrink-0">Letra en Vivo</h2>
         </div>
         <div className="flex min-w-0 items-center gap-2">
           {heading && (
@@ -137,62 +136,64 @@ export function LyricsCard() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Busca una canción para ver su letra"
-              className="input py-1.5 pr-3 pl-8 text-[12px]"
-              aria-label="Buscar letra"
+              placeholder="Busca una canción para ver su letra…"
+              className="input py-1.5 pr-8 pl-8 text-xs"
+              aria-label="Buscar letra de canción"
             />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="absolute top-1/2 right-2.5 -translate-y-1/2 text-faint hover:text-fg"
+                aria-label="Borrar búsqueda"
+              >
+                <X size={12} />
+              </button>
+            ) : null}
           </div>
         </form>
       )}
 
       <div
         ref={scrollRef}
-        className="scroll-thin fade-mask-b h-[210px] overflow-y-auto px-6 py-10 lg:h-[268px]"
-        aria-live="polite"
+        tabIndex={0}
+        aria-label="Letra de la canción"
+        className="scroll-thin flex-1 overflow-y-auto px-5 py-4 focus:outline-none max-h-[360px]"
       >
         {status === 'loading' && (
-          <div className="flex h-full flex-col items-center justify-center gap-3">
-            <div className="size-4 animate-spin rounded-full border-2 border-surface-3 border-t-accent" />
-            <p className="text-[11.5px] text-faint">Buscando la letra…</p>
-          </div>
-        )}
-
-        {status !== 'loading' && lyrics?.instrumental && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <p className="text-[13px] text-muted">Instrumental</p>
-            <p className="max-w-[240px] text-[11.5px] text-faint">
-              Esta canción no tiene letra. Disfruta el silencio.
-            </p>
-          </div>
-        )}
-
-        {status === 'empty' && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <p className="text-[13px] text-muted">Sin letra disponible</p>
-            <p className="max-w-[260px] text-[11.5px] leading-relaxed text-faint">
-              No hay letra para esta canción. Prueba buscarla a mano.
-            </p>
+          <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+            <div className="size-5 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+            <span className="text-xs text-muted">Sincronizando letra…</span>
           </div>
         )}
 
         {status === 'error' && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <p className="text-[13px] text-warn">No se pudo cargar la letra</p>
+          <div className="flex h-36 flex-col items-center justify-center gap-1.5 text-center">
+            <p className="text-[13px] text-muted">No se pudo cargar la letra</p>
             <p className="text-[11.5px] text-faint">
               Revisa tu conexión e inténtalo otra vez.
             </p>
           </div>
         )}
 
+        {status === 'empty' && (
+          <div className="flex h-36 flex-col items-center justify-center gap-1.5 text-center">
+            <p className="text-[13px] text-muted">Sin letra disponible</p>
+            <p className="max-w-[240px] text-[11.5px] leading-relaxed text-faint">
+              Esta canción no tiene letra cargada en la comunidad de lrclib.
+            </p>
+          </div>
+        )}
+
         {status === 'idle' && !lyrics && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <div className="grid size-9 place-items-center rounded-full border border-line bg-surface-2 text-faint">
-              <Music2 size={15} />
+          <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+            <div className="grid size-9 place-items-center rounded-xl border border-line bg-surface-2 text-faint">
+              <Music2 size={16} />
             </div>
-            <p className="text-[13px] text-muted">
+            <p className="text-[13px] font-medium text-muted">
               {track ? 'Buscando…' : 'Nada sonando'}
             </p>
-            <p className="max-w-[250px] text-[11.5px] leading-relaxed text-faint">
+            <p className="max-w-[260px] text-[11.5px] leading-relaxed text-faint">
               {track
                 ? 'Esperando la letra de la canción actual.'
                 : isDesktop()
@@ -203,18 +204,23 @@ export function LyricsCard() {
         )}
 
         {status === 'idle' && lyrics && lines && (
-          <div className="space-y-3 text-center">
+          <div className="space-y-3.5 text-center select-none py-2">
             {lines.map((line, i) => {
               const active = i === activeIndex
+              const isPast = activeIndex > -1 && i < activeIndex
               return (
                 <p
                   key={`${line.time}-${i}`}
                   ref={active ? activeRef : undefined}
-                  className={`transition-all duration-300 ${
+                  onClick={() => seek(line.time)}
+                  className={`cursor-pointer transition-all duration-200 select-text ${
                     active
-                      ? 'scale-[1.01] text-[15.5px] font-medium text-fg'
-                      : 'text-[13.5px] text-faint'
+                      ? 'scale-[1.03] text-[16px] font-bold text-accent drop-shadow-[0_2px_12px_rgba(137,169,204,0.35)]'
+                      : isPast
+                        ? 'text-[13.5px] text-faint/60 hover:text-fg'
+                        : 'text-[13.5px] text-muted/70 hover:text-fg'
                   }`}
+                  title="Haz clic para saltar a esta parte"
                 >
                   {line.text || '\u00A0'}
                 </p>
@@ -224,20 +230,20 @@ export function LyricsCard() {
         )}
 
         {status === 'idle' && lyrics && !lines && lyrics.plain && (
-          <div className="space-y-4 whitespace-pre-line text-[13.5px] leading-relaxed text-muted">
+          <div className="space-y-4 whitespace-pre-line text-[13.5px] leading-relaxed text-muted py-2">
             {lyrics.plain}
           </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-line-soft px-4 py-2">
+      <div className="flex items-center justify-between border-t border-line-soft px-4 py-2 bg-surface-2/30">
         <span className="text-[10px] text-faint">
-          letras por <span className="text-muted">lrclib</span>
+          letras por <span className="text-muted font-medium">lrclib</span>
           {lyrics?.source === 'youtube' && ' · youtube music'}
         </span>
         {lines && (
-          <span className="chip py-0.5 text-[9.5px] tracking-wide uppercase">
-            sincronizada
+          <span className="chip py-0.5 text-[9px] font-semibold tracking-wider uppercase text-accent border-accent/20 bg-accent/10">
+            sincronizada · clic para saltar
           </span>
         )}
       </div>

@@ -215,9 +215,9 @@ function TaskRow({ task, active, h }: { task: Task; active: boolean; h: RowHandl
       onDragEnd={h.onDragEnd}
       onDragOver={(e) => h.onDragOver(e, task.id)}
       onDrop={(e) => h.onDrop(e, task.id)}
-      className={`group relative rounded-xl border transition ${
+      className={`group relative rounded-xl border transition-all duration-150 ${
         active
-          ? 'border-accent/30 bg-accent/[0.07]'
+          ? 'border-accent/40 bg-accent/[0.09] shadow-sm'
           : 'border-transparent hover:border-line hover:bg-surface-2/60'
       } ${dragging ? 'opacity-40' : ''}`}
     >

@@ -3,8 +3,8 @@ import { SlidersHorizontal } from 'lucide-react'
 import { getAnalyser } from '../lib/audioGraph'
 import { useUi } from '../store/useUi'
 
-const BAR_COUNT = 46
-const ACCENT = '137, 169, 204'
+const BAR_COUNT = 48
+const ACCENT_BASE = '137, 169, 204'
 
 type Props = {
   /** Altura en píxeles de la franja. */
@@ -51,21 +51,20 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
       c.clearRect(0, 0, width, height)
       const mid = height / 2
 
-      // Si el contexto de audio se suspendió (pestaña en segundo plano o
-      // inactividad), intentamos reanudarlo para que el espectro vuelva.
+      // Reanudar contexto si está suspendido
       const analyser = getAnalyser()
-      if (analyser && analyser.context.state === 'suspended') {
-        void analyser.context.resume().catch(() => undefined)
+      const audioCtx = analyser?.context as AudioContext | undefined
+      if (audioCtx && 'state' in audioCtx && audioCtx.state === 'suspended') {
+        void audioCtx.resume?.().catch(() => undefined)
       }
 
       if (analyser) {
         if (!spectrum || spectrum.length !== analyser.frequencyBinCount) {
           spectrum = new Uint8Array(analyser.frequencyBinCount)
         }
-        analyser.getByteFrequencyData(spectrum)
+        analyser.getByteFrequencyData(spectrum as any)
       }
 
-      // En pausa la señal es silencio: mejor una onda suave que barras planas.
       let silent = true
       if (analyser && spectrum) {
         for (let bin = 0; bin < spectrum.length; bin += 1) {
@@ -76,8 +75,12 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
         }
       }
 
-      // Línea central tenue: da sensación de eje aun con la música en pausa.
-      c.fillStyle = `rgba(${ACCENT}, 0.09)`
+      // Eje central con degradado suave
+      const axisGrad = c.createLinearGradient(0, 0, width, 0)
+      axisGrad.addColorStop(0, 'rgba(137, 169, 204, 0)')
+      axisGrad.addColorStop(0.5, 'rgba(137, 169, 204, 0.15)')
+      axisGrad.addColorStop(1, 'rgba(137, 169, 204, 0)')
+      c.fillStyle = axisGrad
       c.fillRect(0, mid - 0.5, width, 1)
 
       const gap = 2
@@ -87,7 +90,7 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
         let level: number
 
         if (analyser && spectrum && !silent) {
-          // Escala logarítmica: la música concentra energía en los graves.
+          // Escala logarítmica: la música concentra energía en graves
           const ratio = i / BAR_COUNT
           const center = Math.min(
             spectrum.length - 1,
@@ -100,17 +103,23 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
           level = (sum / (to - from) / 255) ** 1.5
         } else {
           level =
-            0.18 +
-            0.12 * Math.sin(time / 900 + i * 0.35) +
-            0.07 * Math.sin(time / 1500 - i * 0.18)
+            0.16 +
+            0.1 * Math.sin(time / 850 + i * 0.32) +
+            0.06 * Math.sin(time / 1400 - i * 0.16)
         }
 
         const energy = Math.max(0.02, Math.min(1, level))
-        const barHeight = Math.max(1.5, energy * (mid - 1))
+        const barHeight = Math.max(1.5, energy * (mid - 2))
         const x = i * (barWidth + gap)
-        const alpha = 0.16 + energy * 0.6
+        const alpha = Math.min(1, 0.2 + energy * 0.75)
 
-        c.fillStyle = `rgba(${ACCENT}, ${alpha.toFixed(3)})`
+        // Refactoring UI: Gradiente luminoso en las barras del espectro
+        const barGrad = c.createLinearGradient(0, mid - barHeight, 0, mid + barHeight)
+        barGrad.addColorStop(0, `rgba(180, 210, 240, ${alpha.toFixed(3)})`)
+        barGrad.addColorStop(0.5, `rgba(${ACCENT_BASE}, ${alpha.toFixed(3)})`)
+        barGrad.addColorStop(1, `rgba(180, 210, 240, ${alpha.toFixed(3)})`)
+
+        c.fillStyle = barGrad
         c.beginPath()
         if (typeof c.roundRect === 'function') {
           c.roundRect(x, mid - barHeight, barWidth, barHeight * 2, barWidth / 2)
@@ -134,37 +143,41 @@ export function Visualizer({ heightClass = 'h-14' }: Props) {
       resizeScheduled = true
       queueMicrotask(() => {
         resize()
-        // Redibuja ya: si la ventana está en segundo plano, rAF puede estar
-        // frenado y el canvas acabaría en blanco tras el resize.
         draw(performance.now())
       })
     })
     observer.observe(canvas)
 
-    if (!reduceMotion) frame = window.requestAnimationFrame(loop)
+    if (!reduceMotion) {
+      frame = window.requestAnimationFrame(loop)
+    }
 
     return () => {
+      window.cancelAnimationFrame(frame)
       observer.disconnect()
-      if (frame) window.cancelAnimationFrame(frame)
     }
   }, [])
 
   return (
-    <div
-      className={`group relative ${heightClass} overflow-hidden rounded-b-2xl border-t border-line-soft bg-surface-2/25`}
-    >
-      <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 size-full" />
-      <span className="pointer-events-none absolute right-3 bottom-1.5 flex items-center gap-1 text-[9px] tracking-[0.14em] text-faint uppercase opacity-60 transition-opacity group-hover:opacity-100">
-        <SlidersHorizontal size={10} />
-        Ecualizador
-      </span>
-      <button
-        type="button"
-        onClick={openEq}
-        className="absolute inset-0 rounded-none"
-        aria-label="Abrir ecualizador"
-        title="Abrir ecualizador"
+    <div className={`group relative w-full border-t border-line-soft bg-surface-2/40 px-3 py-1 ${heightClass}`}>
+      <canvas
+        ref={canvasRef}
+        aria-hidden
+        className="size-full"
       />
+
+      <div className="absolute top-1/2 right-3 -translate-y-1/2 opacity-0 transition-all duration-200 group-hover:opacity-100">
+        <button
+          type="button"
+          onClick={() => openEq()}
+          className="chip chip-interactive flex items-center gap-1.5 py-1 text-[10.5px] font-semibold text-accent border-accent/25 bg-surface/90 shadow-lg backdrop-blur-md"
+          title="Abrir ecualizador de 5 bandas"
+          aria-label="Abrir ecualizador"
+        >
+          <SlidersHorizontal size={12} />
+          <span>Ecualizador</span>
+        </button>
+      </div>
     </div>
   )
 }

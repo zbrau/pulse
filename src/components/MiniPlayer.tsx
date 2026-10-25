@@ -37,8 +37,11 @@ export function MiniPlayer() {
         : 'descanso'
 
   return (
-    <div className="flex h-screen flex-col justify-between gap-2 overflow-hidden bg-bg px-3 py-2">
-      <div className="flex items-start justify-between gap-2">
+    <div
+      data-tauri-drag-region
+      className="flex h-screen flex-col justify-between gap-2 overflow-hidden bg-bg px-3.5 py-2.5 select-none"
+    >
+      <div data-tauri-drag-region className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="flex items-center gap-1 text-[9px] font-medium tracking-[0.16em] text-accent/80 uppercase">
             <TimerIcon size={9} />
