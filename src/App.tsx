@@ -68,7 +68,23 @@ function useMiniWindow(mini: boolean) {
   }, [mini])
 }
 
+/** Desactiva el menú contextual del navegador (Back, Refresh, Save As), permitiéndolo sólo en inputs/textarea. */
+function useDisableContextMenu() {
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('input, textarea, [contenteditable="true"]')) {
+        return
+      }
+      e.preventDefault()
+    }
+    window.addEventListener('contextmenu', handleContextMenu)
+    return () => window.removeEventListener('contextmenu', handleContextMenu)
+  }, [])
+}
+
 export default function App() {
+  useDisableContextMenu()
   useTimerEngine()
   useSpacebar()
 

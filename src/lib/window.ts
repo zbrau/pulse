@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import {
   getCurrentWindow,
   LogicalSize,
@@ -15,9 +16,13 @@ export const isMiniWindow = (): boolean => active
 export async function minimizeWindow(): Promise<void> {
   if (!isDesktop()) return
   try {
-    await getCurrentWindow().minimize()
-  } catch (err) {
-    console.warn('[window] error minimizando:', err)
+    await invoke('minimize_window')
+  } catch {
+    try {
+      await getCurrentWindow().minimize()
+    } catch (err) {
+      console.warn('[window] error minimizando:', err)
+    }
   }
 }
 
@@ -25,9 +30,13 @@ export async function minimizeWindow(): Promise<void> {
 export async function toggleMaximizeWindow(): Promise<void> {
   if (!isDesktop()) return
   try {
-    await getCurrentWindow().toggleMaximize()
-  } catch (err) {
-    console.warn('[window] error maximizando:', err)
+    await invoke('toggle_maximize_window')
+  } catch {
+    try {
+      await getCurrentWindow().toggleMaximize()
+    } catch (err) {
+      console.warn('[window] error maximizando:', err)
+    }
   }
 }
 
@@ -35,9 +44,13 @@ export async function toggleMaximizeWindow(): Promise<void> {
 export async function closeWindow(): Promise<void> {
   if (!isDesktop()) return
   try {
-    await getCurrentWindow().close()
-  } catch (err) {
-    console.warn('[window] error cerrando:', err)
+    await invoke('close_window')
+  } catch {
+    try {
+      await getCurrentWindow().close()
+    } catch (err) {
+      console.warn('[window] error cerrando:', err)
+    }
   }
 }
 

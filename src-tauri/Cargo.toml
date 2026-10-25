@@ -1,6 +1,6 @@
 [package]
 name = "pulse"
-version = "0.2.2"
+version = "0.2.3"
 description = "Pulse — enfoque y música"
 authors = ["brau"]
 edition = "2021"

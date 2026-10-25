@@ -82,7 +82,7 @@ export function TopBar() {
             <div className="flex items-center gap-1.5">
               <p className="text-[13.5px] font-bold tracking-tight text-fg">Pulse</p>
               <span className="text-[9.5px] font-mono text-faint px-1.5 py-0.2 rounded bg-surface-2 border border-line-soft">
-                v0.2.2
+                v0.2.3
               </span>
             </div>
             <p className="text-[10px] text-faint">

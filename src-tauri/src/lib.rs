@@ -175,6 +175,25 @@ fn app_info(state: State<'_, Arc<AppState>>) -> AppInfo {
     }
 }
 
+#[tauri::command]
+fn minimize_window(window: tauri::Window) -> Result<(), String> {
+    window.minimize().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn toggle_maximize_window(window: tauri::Window) -> Result<(), String> {
+    if window.is_maximized().unwrap_or(false) {
+        window.unmaximize().map_err(|e| e.to_string())
+    } else {
+        window.maximize().map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn close_window(window: tauri::Window) -> Result<(), String> {
+    window.close().map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -230,6 +249,9 @@ pub fn run() {
             spotify_playlist,
             match_import,
             app_info,
+            minimize_window,
+            toggle_maximize_window,
+            close_window,
             downloads::download_track,
             downloads::list_downloads,
             downloads::delete_download,
